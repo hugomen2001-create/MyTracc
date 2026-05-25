@@ -2362,7 +2362,16 @@ async function _doFinish(current,di,savedSeries,totalSeries,totalEx,dd,exs,pct){
 function selectDietDay(i){state.dietDay=i;openMeals={};render();}
 
 function toggleDietMeal(mealName){
-  openMeals[mealName]=!openMeals[mealName];render();
+  // Guardar scroll antes de re-renderizar
+  const sc=document.querySelector('#main-content [style*="overflow-y:auto"]')||document.querySelector('#main-content');
+  const scrollTop=sc?sc.scrollTop:0;
+  openMeals[mealName]=!openMeals[mealName];
+  render();
+  // Restaurar scroll después del render
+  requestAnimationFrame(()=>{
+    const sc2=document.querySelector('#main-content [style*="overflow-y:auto"]')||document.querySelector('#main-content');
+    if(sc2)sc2.scrollTop=scrollTop;
+  });
 }
 
 function toggleCheatForm(){
