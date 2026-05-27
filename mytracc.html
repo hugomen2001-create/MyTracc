@@ -726,7 +726,7 @@ const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'
 const SHORT=['L','M','X','J','V','S','D'];
 const DEFAULT_PLAN=['DESCANSO','TORSO','DESCANSO','LEG','PUSH','PULL','DESCANSO'];
 const SESSIONS=['LEG','PULL','PUSH','TORSO'];
-const DAY_KEYS=['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+const DAY_KEYS=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
 // MESO2 se carga dinámicamente desde Supabase (client_plans + exercises)
 // Se rellena en initApp() con loadClientPlan()
@@ -1375,7 +1375,9 @@ function renderDiet(){
   const sel=state.dietDay, dayName=DAYS[sel];
   const isToday=sel===todayIdx();
 
-  // Modo Supabase: solo si hay plan Y opciones con comidas reales
+  // La dieta SIEMPRE viene de Supabase. Si no hay plan o no hay opciones
+  // con comidas reales, se muestra un estado vacío honesto (nunca datos
+  // hardcodeados de otro cliente).
   const hasRealOptions=activeNutritionPlan&&nutritionOptions.length>0&&
     nutritionOptions.some(o=>o.meals&&Object.keys(o.meals).length>0);
 
@@ -1383,8 +1385,13 @@ function renderDiet(){
     return renderDietSupabase(sel, dayName, isToday);
   }
 
-  // Fallback: datos hardcodeados
-  return renderDietHardcoded(sel, dayName, isToday);
+  // Sin plan de nutrición asignado
+  return '<div style="padding:90px 28px;text-align:center;">'+
+    '<div style="font-size:40px;margin-bottom:14px;">🥗</div>'+
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;margin-bottom:8px;">Aún no tienes dieta</div>'+
+    '<div style="font-size:13px;color:#999;line-height:1.6;">Tu entrenador todavía no te ha asignado un plan de nutrición. '+
+    'En cuanto lo haga, aparecerá aquí.</div>'+
+  '</div>';
 }
 
 function renderDietSupabase(sel, dayName, isToday){
@@ -1416,7 +1423,7 @@ function renderDietSupabase(sel, dayName, isToday){
       const dk=DAY_KEYS[i];
       const optNum=weeklyNutrition?.[dk+'_option'];
       const opt=optNum?nutritionOptions.find(o=>o.option_number===optNum):null;
-      const optLabel=opt?(opt.name||'Op'+optNum).split(' ')[0]:'';
+      const optLabel=opt?('Op'+optNum):'';
       return '<div onclick="selectDietDay('+i+')" style="flex:1;background:'+(isSel?'#111':'#fff')+';border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border:1.5px solid '+(isSel?'#111':'#eaeae6')+';cursor:pointer;transition:all .15s;">'+
         '<div style="font-size:10px;font-weight:700;color:'+(isSel?'#fff':'#bbb')+';text-transform:uppercase;letter-spacing:.04em;">'+d+'</div>'+
         '<div style="font-size:7px;font-weight:700;color:'+(isSel?'rgba(255,255,255,.5)':opt?'#16a34a':'#ddd')+';text-transform:uppercase;">'+optLabel+'</div>'+
@@ -1431,7 +1438,7 @@ function renderDietSupabase(sel, dayName, isToday){
       nutritionOptions.map(opt=>{
         const isSel=selectedOptNum===opt.option_number;
         return '<div onclick="selectDayOption('+opt.option_number+')" style="padding:8px 14px;border-radius:12px;border:1.5px solid '+(isSel?'#16a34a':'#eaeae6')+';background:'+(isSel?'#f0fdf4':'#fff')+';cursor:pointer;font-size:12px;font-weight:700;color:'+(isSel?'#16a34a':'#888')+';transition:all .15s;">'+
-          (opt.name||'Opción '+opt.option_number)+
+          ('Opción '+opt.option_number)+
         '</div>';
       }).join('')+
     '</div>'+
@@ -1446,7 +1453,7 @@ function renderDietSupabase(sel, dayName, isToday){
 
     // Card macros
     mealsHtml+='<div style="margin:0 16px 12px;background:#fff;border:1.5px solid rgba(22,163,74,.22);border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
-      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(22,163,74,.6);margin-bottom:8px;">'+(selectedOpt.name||'Opción')+' · '+dayName+'</div>'+
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(22,163,74,.6);margin-bottom:8px;">'+('Opción '+selectedOpt.option_number)+' · '+dayName+'</div>'+
       '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
         '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+Math.round(totKcal).toLocaleString('es-ES')+'</div>'+
         '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">kcal</div>'+
@@ -1464,7 +1471,11 @@ function renderDietSupabase(sel, dayName, isToday){
     // Cards comidas
     mealsHtml+='<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;">';
     ['desayuno','comida','merienda','cena'].forEach(mealName=>{
-      const m=meals[mealName];if(!m||!m.items?.length)return;
+      // En Supabase las claves vienen capitalizadas (Desayuno, Comida...).
+      // Buscamos la comida sin que importe mayúsculas/minúsculas.
+      const realKey=Object.keys(meals).find(k=>k.toLowerCase()===mealName);
+      const m=realKey?meals[realKey]:null;
+      if(!m||!m.items?.length)return;
       const mc=mealColors[mealName]||{bg:'#f5f5f3',border:'#eaeae6',emoji:'🍽️'};
       const mKcal=m.items.reduce((a,i)=>a+(i.kcal||0),0);
       const isOpen=openMeals[mealName];
@@ -1535,15 +1546,24 @@ async function selectDayOption(optNum){
   if(!clientData||!activeNutritionPlan)return;
   const dayKey=DAY_KEYS[state.dietDay];
   const wkStart=getWeekStart();
+  let ok=false;
   if(weeklyNutrition){
-    const {data}=await sb.from('weekly_nutrition').update({[dayKey+'_option']:optNum,configured_at:new Date().toISOString()}).eq('id',weeklyNutrition.id).select().single();
-    if(data)weeklyNutrition=data;
+    const {data,error}=await sb.from('weekly_nutrition')
+      .update({[dayKey+'_option']:optNum,configured_at:new Date().toISOString()})
+      .eq('id',weeklyNutrition.id).select().single();
+    if(error){console.error('weekly_nutrition update error:',error);}
+    else if(data){weeklyNutrition=data;ok=true;}
   } else {
-    const {data}=await sb.from('weekly_nutrition').insert({
+    const {data,error}=await sb.from('weekly_nutrition').insert({
       client_id:clientData.id,nutrition_plan_id:activeNutritionPlan.id,
       week_start:wkStart,[dayKey+'_option']:optNum,configured_at:new Date().toISOString()
     }).select().single();
-    if(data)weeklyNutrition=data;
+    if(error){console.error('weekly_nutrition insert error:',error);}
+    else if(data){weeklyNutrition=data;ok=true;}
+  }
+  if(!ok){
+    showToast('No se pudo guardar','red','Inténtalo de nuevo');
+    return;
   }
   openMeals={};
   showToast('Guardado ✓','green');
@@ -4101,6 +4121,19 @@ async function initApp(user){
         sb.from('weekly_nutrition').select('*').eq('client_id',client.id).eq('week_start',getWeekStart()).maybeSingle()
       ]);
       nutritionOptions=optsRes.data||[];
+      // Normalizar los alimentos: en Supabase los macros se llaman
+      // carbs/fat/protein, pero el resto del código de dieta usa ch/g/p.
+      // Añadimos los alias para que todo funcione sin tocar más código.
+      nutritionOptions.forEach(opt=>{
+        const meals=opt.meals||{};
+        Object.values(meals).forEach(m=>{
+          (m.items||[]).forEach(it=>{
+            if(it.ch==null) it.ch=it.carbs||0;
+            if(it.g==null)  it.g=it.fat||0;
+            if(it.p==null)  it.p=it.protein||0;
+          });
+        });
+      });
       weeklyNutrition=weeklyRes.data||null;
     }
 
