@@ -751,6 +751,7 @@ let appUser=null, clientData=null, coachData=null;
 let activePlan=null, planExercises=[];
 let activeNutritionPlan=null, nutritionOptions=[], weeklyNutrition=null;
 let activeMeso=null;
+let splitAdjustments=[]; // histórico de desplazamientos del split (split_adjustments)
 let metricsCache={}; // date -> daily_metrics row
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
@@ -905,12 +906,113 @@ async function saveDayField(di, field, value){
 
 function weekKey(){return getWeekKey(new Date());}
 function todayIdx(){const d=new Date().getDay();return d===0?6:d-1;}
+
+/* ============================================================================
+ * LÓGICA DE CICLOS (split de longitud variable) — función pura embebida.
+ * Réplica exacta de cycle-logic.js (Fase 1, testeada en varias TZ).
+ * Calcula qué toca un día según: start_date del mesociclo, split, ajustes.
+ * CRÍTICO: cuenta días con Date.UTC sobre componentes LOCALES → inmune a TZ.
+ * NO usa toISOString (causa de los bugs de fecha). Ver traspaso §7.
+ * ========================================================================== */
+const Cycle = (function(){
+  function toYMD(value){
+    if(value==null)return null;
+    if(value instanceof Date){
+      if(isNaN(value.getTime()))return null;
+      return {y:value.getFullYear(),m:value.getMonth()+1,d:value.getDate()};
+    }
+    if(typeof value==='string'){
+      const m=value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if(!m)return null;
+      const y=+m[1],mo=+m[2],d=+m[3];
+      if(mo<1||mo>12||d<1||d>31)return null;
+      return {y:y,m:mo,d:d};
+    }
+    return null;
+  }
+  function dayNumber(ymd){return Math.floor(Date.UTC(ymd.y,ymd.m-1,ymd.d)/86400000);}
+  function diffDays(a,b){return dayNumber(a)-dayNumber(b);}
+  function mod(n,m){return ((n%m)+m)%m;}
+  function num(v){const n=Number(v);return isFinite(n)?n:0;}
+  function resolveOffset(adjustments,targetYMD){
+    if(!Array.isArray(adjustments)||adjustments.length===0)return 0;
+    const targetN=dayNumber(targetYMD);
+    let best=null;
+    for(let i=0;i<adjustments.length;i++){
+      const adj=adjustments[i];if(!adj)continue;
+      const eff=toYMD(adj.effective_date);if(!eff)continue;
+      const n=dayNumber(eff);
+      if(n<=targetN){
+        if(best===null||n>best.n||(n===best.n&&num(adj.offset_days)>best.offset)){
+          best={n:n,offset:num(adj.offset_days)};
+        }
+      }
+    }
+    return best?Math.max(0,best.offset):0;
+  }
+  function cyclePositionForDate(startDate,split,queryDate,adjustments){
+    if(!Array.isArray(split)||split.length===0)return null;
+    const len=split.length;
+    const start=toYMD(startDate),query=toYMD(queryDate);
+    if(!start||!query)return null;
+    const elapsed=diffDays(query,start);
+    if(elapsed<0)return null;
+    const offset=resolveOffset(adjustments,query);
+    return mod(elapsed-offset,len);
+  }
+  function sessionForDate(startDate,split,queryDate,adjustments){
+    const pos=cyclePositionForDate(startDate,split,queryDate,adjustments);
+    if(pos===null)return null;
+    return split[pos];
+  }
+  function weekPlanForDates(startDate,split,weekDates,adjustments){
+    if(!Array.isArray(weekDates))return [];
+    return weekDates.map(function(d){return sessionForDate(startDate,split,d,adjustments);});
+  }
+  return {cyclePositionForDate:cyclePositionForDate,sessionForDate:sessionForDate,
+          weekPlanForDates:weekPlanForDates,resolveOffset:resolveOffset};
+})();
+
+/* Lunes (local, seguro frente a TZ) de la semana que contiene `d`. */
+function mondayLocalOf(d){
+  const base=(d instanceof Date)?d:new Date();
+  const dow=(base.getDay()+6)%7; // 0=Lun..6=Dom
+  const mon=new Date(base.getFullYear(),base.getMonth(),base.getDate()-dow);
+  return mon; // Date local a medianoche
+}
+/* Array de 7 Date (Lun→Dom) de la semana actual. */
+function currentWeekDates(){
+  const mon=mondayLocalOf(new Date());
+  const out=[];
+  for(let i=0;i<7;i++){out.push(new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+i));}
+  return out;
+}
+
 function getWeekPlan(wk){
-  // Override semanal en localStorage (reorganizar semana)
+  // 1) Override semanal en localStorage (reorganizar semana) — máxima prioridad.
   const override=JSON.parse(localStorage.getItem('weekOverride_'+wk)||'null');
   if(override)return override;
-  // Plan desde Supabase
-  if(activePlan&&activePlan.split)return [...activePlan.split];
+
+  const split=(activePlan&&Array.isArray(activePlan.split)&&activePlan.split.length)?activePlan.split:null;
+
+  // 2a) SPLIT SEMANAL (longitud 7): se ancla a LUNES (modelo de siempre).
+  //     pos0=lunes, pos1=martes, ... NO se desplaza; los ajustes semanales
+  //     se hacen reorganizando días sueltos. El start_date NO mueve el split.
+  if(split&&split.length===7){
+    return [...split];
+  }
+
+  // 2b) CICLO REAL (longitud != 7): rueda de forma continua desde el start_date
+  //     del mesociclo (Día 1 = arranque) y SÍ admite desplazamiento del split.
+  if(split&&activeMeso&&activeMeso.start_date){
+    const weekDates=currentWeekDates();
+    const cyclePlan=Cycle.weekPlanForDates(activeMeso.start_date,split,weekDates,splitAdjustments);
+    // Días fuera del ciclo (anteriores al inicio) → DESCANSO, sin romper la rejilla.
+    return cyclePlan.map(function(s){return s==null?'DESCANSO':s;});
+  }
+
+  // 3) Fallback al comportamiento ANTERIOR (no romper clientes sin datos).
+  if(split)return [...split];
   return [...DEFAULT_PLAN];
 }
 function getDayData(wk,di){
@@ -4101,17 +4203,19 @@ async function initApp(user){
     if(client.status==='pending'){showScreen('pending');return;}
 
     // Cargar datos en paralelo
-    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes]=await Promise.all([
+    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('daily_metrics').select('*').eq('client_id',client.id).gte('date',getWeekStart90()).order('date'),
       sb.from('workout_sessions').select('*,workout_sets(*)').eq('client_id',client.id).gte('session_date',getWeekStart90()).order('session_date'),
       sb.from('cheats').select('*').eq('client_id',client.id).order('date',{ascending:false}).limit(100),
       sb.from('mesocycles').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
-      sb.from('nutrition_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle()
+      sb.from('nutrition_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
+      sb.from('split_adjustments').select('*').eq('client_id',client.id).order('effective_date')
     ]);
 
     activePlan=planRes.data||null;
     activeMeso=mesoRes.data||null;
+    splitAdjustments=(adjustmentsRes&&adjustmentsRes.data)||[];
     activeNutritionPlan=nutritionRes.data||null;
 
     // Cargar opciones de nutrición y asignación semanal
