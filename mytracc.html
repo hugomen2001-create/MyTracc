@@ -727,6 +727,8 @@ let timerInt=null,timerSec=0,timerTotal=0;
 let appUser=null, clientData=null, coachData=null;
 let activePlan=null, planExercises=[];
 let activeNutritionPlan=null, nutritionOptions=[], weeklyNutrition=null;
+// Estado del flujo de configurar dieta (paso 1: explorar+asignar, paso 2: revisar)
+let nutritionConfig={open:false, step:1, draft:null, expandedOpt:null, viewingDay:null};
 let activeMeso=null;
 let splitAdjustments=[]; // histórico de desplazamientos del split (split_adjustments)
 let weekReorders={}; // week_key -> plan[] (reorganización semanal desde week_reorders en Supabase)
@@ -1771,6 +1773,20 @@ function renderDietSupabase(sel, dayName, isToday){
     cena:     {bg:'#f3f0ff',border:'rgba(124,58,237,.15)',emoji:'🌙'},
   };
 
+  // Calcular kcal totales de la opción asignada al día actual
+  const totalsFor=(opt)=>{
+    if(!opt||!opt.meals)return {kcal:0,ch:0,g:0,p:0};
+    let kcal=0,ch=0,g=0,p=0;
+    Object.values(opt.meals).forEach(m=>(m.items||[]).forEach(i=>{kcal+=(i.kcal||0);ch+=(i.ch||0);g+=(i.g||0);p+=(i.p||0);}));
+    return {kcal,ch,g,p};
+  };
+  const todayTot=totalsFor(selectedOpt);
+
+  // ¿El plan se actualizó después de la última configuración del cliente?
+  const planUpdatedAt=activeNutritionPlan?.updated_at||activeNutritionPlan?.created_at||null;
+  const configuredAt=weeklyNutrition?.configured_at||null;
+  const needsConfig=!!planUpdatedAt && (!configuredAt || new Date(planUpdatedAt)>new Date(configuredAt));
+
   // Header
   const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const d2=new Date();d2.setDate(d2.getDate()+(sel-todayIdx()));
@@ -1780,63 +1796,69 @@ function renderDietSupabase(sel, dayName, isToday){
     '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1;">'+(isToday?'Tu plan de <em style="color:#16a34a;">hoy.</em>':dayName+'.')+'</div>'+
   '</div>';
 
-  // Selector de días con opción asignada debajo
+  // Banner "Pol ha actualizado tu plan"
+  let banner='';
+  if(needsConfig){
+    banner='<div onclick="openNutritionConfig()" style="margin:0 16px 14px;background:linear-gradient(135deg,#111 0%,#1a2e1a 100%);border-radius:20px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;">'+
+      '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.15) 0%,transparent 70%);pointer-events:none;"></div>'+
+      '<div style="display:flex;align-items:flex-start;gap:12px;position:relative;">'+
+        '<div style="width:36px;height:36px;border-radius:11px;background:rgba(22,163,74,.2);border:1.5px solid rgba(22,163,74,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">'+
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 12 8 10 8 7a4 4 0 018 0c0 3-4 5-4 5z"/><circle cx="8" cy="6" r="3"/><circle cx="16" cy="6" r="3"/><circle cx="12" cy="4" r="3"/></svg>'+
+        '</div>'+
+        '<div style="flex:1;">'+
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+            '<div style="font-size:12px;font-weight:800;color:#fff;letter-spacing:-.1px;">'+(coachData?.name?coachData.name+' ha actualizado tu plan':'Tu plan se ha actualizado')+'</div>'+
+            '<div style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;"></div>'+
+          '</div>'+
+          '<div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:12px;">Tienes '+nutritionOptions.length+' opciones disponibles. Elige cómo distribuirlas en tu semana.</div>'+
+          '<button style="height:34px;padding:0 16px;border-radius:10px;background:#16a34a;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;letter-spacing:-.1px;">Configurar semana →</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // Card macros "Objetivo diario" (atenuada si necesita config)
+  const macrosCard='<div style="margin:0 16px 12px;background:#fff;border:1.5px solid '+(needsConfig?'#eaeae6':'rgba(22,163,74,.22)')+';border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);position:relative;overflow:hidden;'+(needsConfig?'opacity:.55;':'')+'">'+
+    (needsConfig?'':'<div style="position:absolute;top:-50px;right:-50px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.05) 0%,transparent 70%);pointer-events:none;"></div>')+
+    '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:'+(needsConfig?'#bbb':'rgba(22,163,74,.6)')+';margin-bottom:8px;">'+(needsConfig?'Plan actual':'Objetivo diario')+'</div>'+
+    '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+(selectedOpt?Math.round(todayTot.kcal).toLocaleString('es-ES'):'—')+'</div>'+
+      '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">kcal</div>'+
+    '</div>'+
+    (selectedOpt?
+      '<div style="display:flex;gap:7px;">'+
+        [['CH',todayTot.ch],['G',todayTot.g],['P',todayTot.p]].map(([m,v])=>
+          '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
+            '<div style="font-size:15px;font-weight:700;color:#111;">'+Math.round(v)+'g</div>'+
+            '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(22,163,74,.6);margin-top:2px;">'+m+'</div>'+
+          '</div>'
+        ).join('')+
+      '</div>'
+    : '<div style="font-size:12px;color:#bbb;">Configura el plan para ver los datos</div>')+
+  '</div>';
+
+  // Selector de días con kcal del día
   const daySelector='<div style="padding:0 16px;margin-bottom:14px;display:flex;gap:5px;">'+
     SHORT2.map((d,i)=>{
       const isSel=i===sel;
       const dk=DAY_KEYS[i];
       const optNum=weeklyNutrition?.[dk+'_option'];
       const opt=optNum?nutritionOptions.find(o=>o.option_number===optNum):null;
-      const optLabel=opt?('Op'+optNum):'';
+      const dayTot=opt?totalsFor(opt):null;
+      const kcalLabel=dayTot?Math.round(dayTot.kcal):'—';
       return '<div onclick="selectDietDay('+i+')" style="flex:1;background:'+(isSel?'#111':'#fff')+';border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border:1.5px solid '+(isSel?'#111':'#eaeae6')+';cursor:pointer;transition:all .15s;">'+
-        '<div style="font-size:10px;font-weight:700;color:'+(isSel?'#fff':'#bbb')+';text-transform:uppercase;letter-spacing:.04em;">'+d+'</div>'+
-        '<div style="font-size:7px;font-weight:700;color:'+(isSel?'rgba(255,255,255,.5)':opt?'#16a34a':'#ddd')+';text-transform:uppercase;">'+optLabel+'</div>'+
+        '<div style="font-size:10px;font-weight:700;color:'+(isSel?'#fff':dayTot?'#111':'#ccc')+';text-transform:uppercase;letter-spacing:.04em;">'+d+'</div>'+
+        '<div style="font-size:8px;font-weight:700;color:'+(isSel?'rgba(255,255,255,.5)':dayTot?'#bbb':'#ddd')+';">'+kcalLabel+'</div>'+
       '</div>';
     }).join('')+
   '</div>';
 
-  // Selector de opciones para este día
-  const optSelector='<div style="margin:0 16px 14px;">'+
-    '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Opción para '+dayName+'</div>'+
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
-      nutritionOptions.map(opt=>{
-        const isSel=selectedOptNum===opt.option_number;
-        return '<div onclick="selectDayOption('+opt.option_number+')" style="padding:8px 14px;border-radius:12px;border:1.5px solid '+(isSel?'#16a34a':'#eaeae6')+';background:'+(isSel?'#f0fdf4':'#fff')+';cursor:pointer;font-size:12px;font-weight:700;color:'+(isSel?'#16a34a':'#888')+';transition:all .15s;">'+
-          ('Opción '+opt.option_number)+
-        '</div>';
-      }).join('')+
-    '</div>'+
-  '</div>';
-
-  // Comidas de la opción seleccionada
+  // Comidas de la opción asignada al día actual
   let mealsHtml='';
   if(selectedOpt){
     const meals=selectedOpt.meals||{};
-    let totKcal=0,totCH=0,totG=0,totP=0;
-    Object.values(meals).forEach(m=>(m.items||[]).forEach(i=>{totKcal+=(i.kcal||0);totCH+=(i.ch||0);totG+=(i.g||0);totP+=(i.p||0);}));
-
-    // Card macros
-    mealsHtml+='<div style="margin:0 16px 12px;background:#fff;border:1.5px solid rgba(22,163,74,.22);border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
-      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(22,163,74,.6);margin-bottom:8px;">'+('Opción '+selectedOpt.option_number)+' · '+dayName+'</div>'+
-      '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+Math.round(totKcal).toLocaleString('es-ES')+'</div>'+
-        '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">kcal</div>'+
-      '</div>'+
-      '<div style="display:flex;gap:7px;">'+
-        [['CH',totCH],['G',totG],['P',totP]].map(([m,v])=>
-          '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
-            '<div style="font-size:15px;font-weight:700;color:#111;">'+Math.round(v)+'g</div>'+
-            '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(22,163,74,.6);margin-top:2px;">'+m+'</div>'+
-          '</div>'
-        ).join('')+
-      '</div>'+
-    '</div>';
-
-    // Cards comidas
-    mealsHtml+='<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;">';
+    mealsHtml='<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;">';
     ['desayuno','comida','merienda','cena'].forEach(mealName=>{
-      // En Supabase las claves vienen capitalizadas (Desayuno, Comida...).
-      // Buscamos la comida sin que importe mayúsculas/minúsculas.
       const realKey=Object.keys(meals).find(k=>k.toLowerCase()===mealName);
       const m=realKey?meals[realKey]:null;
       if(!m||!m.items?.length)return;
@@ -1845,7 +1867,7 @@ function renderDietSupabase(sel, dayName, isToday){
       const isOpen=openMeals[mealName];
       const preview=m.items.slice(0,3).map(i=>i.name).join(' · ');
       mealsHtml+=
-        '<div style="background:#fff;border-radius:18px;border:1.5px solid '+(isOpen?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isOpen?'0 2px 12px rgba(0,0,0,.1)':'0 1px 3px rgba(0,0,0,.04)')+';"> '+
+        '<div style="background:#fff;border-radius:18px;border:1.5px solid '+(isOpen?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isOpen?'0 2px 12px rgba(0,0,0,.1)':'0 1px 3px rgba(0,0,0,.04)')+';">'+
           '<div onclick="toggleDietMeal(\''+mealName+'\')" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;'+(isOpen?'border-bottom:1px solid #f0f0ee;':'')+'">'+
             '<div style="width:38px;height:38px;border-radius:12px;background:'+mc.bg+';border:1.5px solid '+mc.border+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;">'+mc.emoji+'</div>'+
             '<div style="flex:1;min-width:0;">'+
@@ -1892,16 +1914,23 @@ function renderDietSupabase(sel, dayName, isToday){
   } else {
     mealsHtml='<div style="margin:0 16px;background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:32px 20px;text-align:center;">'+
       '<div style="font-size:32px;margin-bottom:10px;">🍽️</div>'+
-      '<div style="font-size:14px;font-weight:600;color:#111;margin-bottom:4px;">Elige una opción</div>'+
-      '<div style="font-size:12px;color:#bbb;">Selecciona arriba qué opción de dieta quieres para '+dayName+'</div>'+
+      '<div style="font-size:14px;font-weight:600;color:#111;margin-bottom:4px;">Día sin asignar</div>'+
+      '<div style="font-size:12px;color:#bbb;margin-bottom:14px;">Aún no has elegido qué opción comer este día</div>'+
+      '<button onclick="openNutritionConfig()" style="height:36px;padding:0 16px;border-radius:10px;background:#111;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Configurar semana</button>'+
     '</div>';
   }
 
-
+  // Botón editar distribución siempre visible al final
+  const editBtn='<div style="padding:18px 16px 8px;">'+
+    '<button onclick="openNutritionConfig()" style="width:100%;height:44px;border-radius:14px;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04);font-family:\'DM Sans\',sans-serif;">'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'+
+      '<span style="font-size:13px;font-weight:600;color:#888;">Editar distribución semanal</span>'+
+    '</button>'+
+  '</div>';
 
   return '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#f5f5f3">'+
     '<div style="flex:1;overflow-y:auto;padding-bottom:80px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
-      header+daySelector+optSelector+mealsHtml+
+      header+banner+macrosCard+daySelector+mealsHtml+editBtn+
     '</div>'+
   '</div>';
 }
@@ -1932,6 +1961,336 @@ async function selectDayOption(optNum){
   openMeals={};
   showToast('Guardado ✓','green');
   render();
+}
+
+// ─── FLUJO DE CONFIGURAR DIETA (banner + modal pantalla completa) ───
+
+function openNutritionConfig(){
+  if(!activeNutritionPlan||nutritionOptions.length===0){
+    showToast('Aún no tienes opciones de dieta','warn');
+    return;
+  }
+  // Copia del estado actual como borrador (para poder cancelar sin guardar)
+  const draft={};
+  DAY_KEYS.forEach(dk=>{draft[dk]=weeklyNutrition?.[dk+'_option']||null;});
+  nutritionConfig={open:true, step:1, draft, expandedOpt:null, viewingDay:null};
+  document.body.style.overflow='hidden';
+  renderNutritionConfigModal();
+}
+
+function closeNutritionConfig(){
+  nutritionConfig={open:false, step:1, draft:null, expandedOpt:null, viewingDay:null};
+  document.body.style.overflow='';
+  const el=document.getElementById('nutrition-config-modal');
+  if(el)el.remove();
+  render();
+}
+
+function renderNutritionConfigModal(){
+  let el=document.getElementById('nutrition-config-modal');
+  if(!el){
+    el=document.createElement('div');
+    el.id='nutrition-config-modal';
+    el.style.cssText='position:fixed;inset:0;background:#f5f5f3;z-index:1000;display:flex;flex-direction:column;font-family:\'DM Sans\',sans-serif;';
+    document.body.appendChild(el);
+  }
+
+  if(nutritionConfig.step===1){
+    el.innerHTML=ncRenderStep1();
+  } else if(nutritionConfig.step===2){
+    el.innerHTML=ncRenderStep2();
+  }
+}
+
+function ncRenderStep1(){
+  const SHORT2=['L','M','X','J','V','S','D'];
+  const draft=nutritionConfig.draft;
+  const totalsFor=(opt)=>{
+    if(!opt||!opt.meals)return {kcal:0,ch:0,g:0,p:0};
+    let kcal=0,ch=0,g=0,p=0;
+    Object.values(opt.meals).forEach(m=>(m.items||[]).forEach(i=>{kcal+=(i.kcal||0);ch+=(i.ch||0);g+=(i.g||0);p+=(i.p||0);}));
+    return {kcal,ch,g,p};
+  };
+
+  // Header del modal
+  const header='<div style="padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1.5px solid #eaeae6;flex-shrink:0;">'+
+    '<div>'+
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:2px;">Paso 1 de 2</div>'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;letter-spacing:-.4px;line-height:1.1;">Configurar tu semana</div>'+
+    '</div>'+
+    '<button onclick="closeNutritionConfig()" style="width:36px;height:36px;border-radius:50%;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+    '</button>'+
+  '</div>';
+
+  // Intro
+  const intro='<div style="padding:18px 20px 12px;">'+
+    '<div style="font-size:13px;color:#888;line-height:1.5;">Toca cada día para elegir qué opción comer. Puedes ver las comidas de cada opción antes de elegir.</div>'+
+  '</div>';
+
+  // Grid de 7 días
+  const daysGrid='<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;">'+
+    DAY_KEYS.map((dk,i)=>{
+      const optNum=draft[dk];
+      const opt=optNum?nutritionOptions.find(o=>o.option_number===optNum):null;
+      const tot=opt?totalsFor(opt):null;
+      const isViewing=nutritionConfig.viewingDay===i;
+      const dayName=DAYS[i];
+      return '<div style="background:#fff;border-radius:16px;border:1.5px solid '+(isViewing?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isViewing?'0 2px 12px rgba(0,0,0,.08)':'0 1px 3px rgba(0,0,0,.04)')+';">'+
+        // Header día
+        '<div onclick="ncToggleDay('+i+')" style="padding:12px 14px;display:flex;align-items:center;gap:11px;cursor:pointer;'+(isViewing?'border-bottom:1px solid #f0f0ee;':'')+'">'+
+          '<div style="width:34px;height:34px;border-radius:10px;background:'+(opt?'#f0fdf4':'#f5f5f3')+';border:1.5px solid '+(opt?'rgba(22,163,74,.2)':'#eaeae6')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+            '<span style="font-size:12px;font-weight:800;color:'+(opt?'#16a34a':'#bbb')+';">'+SHORT2[i]+'</span>'+
+          '</div>'+
+          '<div style="flex:1;min-width:0;">'+
+            '<div style="font-size:13.5px;font-weight:700;color:#111;">'+dayName+'</div>'+
+            '<div style="font-size:11.5px;color:'+(opt?'#16a34a':'#bbb')+';font-weight:600;">'+(opt?('Opción '+optNum+' · '+Math.round(tot.kcal)+' kcal'):'Sin asignar')+'</div>'+
+          '</div>'+
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="'+(isViewing?'#111':'#ccc')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform .2s;transform:'+(isViewing?'rotate(180deg)':'rotate(0deg)')+'"><polyline points="6 9 12 15 18 9"/></svg>'+
+        '</div>'+
+        // Selector de opción (cuando está expandido)
+        (isViewing?ncRenderDayOptions(i,draft[dk]):'')+
+      '</div>';
+    }).join('')+
+  '</div>';
+
+  // Footer con acciones
+  const allAssigned=DAY_KEYS.every(dk=>draft[dk]);
+  const footer='<div style="padding:14px 16px 18px;background:#fff;border-top:1.5px solid #eaeae6;flex-shrink:0;">'+
+    '<button onclick="ncGoToStep2()" '+(allAssigned?'':'disabled ')+
+      'style="width:100%;height:48px;border-radius:14px;background:'+(allAssigned?'#111':'#eaeae6')+';border:none;color:'+(allAssigned?'#fff':'#bbb')+';font-size:14px;font-weight:700;cursor:'+(allAssigned?'pointer':'not-allowed')+';font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">'+
+      'Revisar y guardar'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'+
+    '</button>'+
+    (allAssigned?'':'<div style="font-size:11px;color:#bbb;text-align:center;margin-top:8px;">Asigna una opción a todos los días para continuar</div>')+
+  '</div>';
+
+  return header+
+    '<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">'+
+      intro+daysGrid+
+    '</div>'+
+    footer;
+}
+
+function ncRenderDayOptions(dayIdx, selectedOptNum){
+  const expandedOpt=nutritionConfig.expandedOpt;
+  const mealColors={
+    desayuno:{bg:'#fffbeb',border:'rgba(234,179,8,.2)',emoji:'☕'},
+    comida:{bg:'#f0fdf4',border:'rgba(22,163,74,.18)',emoji:'🍗'},
+    merienda:{bg:'#fff7f0',border:'rgba(251,146,60,.18)',emoji:'🍎'},
+    cena:{bg:'#f3f0ff',border:'rgba(124,58,237,.15)',emoji:'🌙'},
+  };
+
+  return '<div style="padding:12px 14px;background:#fafaf8;">'+
+    '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Elige una opción</div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px;">'+
+      nutritionOptions.map(opt=>{
+        const isSel=selectedOptNum===opt.option_number;
+        const isExp=expandedOpt===opt.option_number;
+        let kcal=0;
+        if(opt.meals)Object.values(opt.meals).forEach(m=>(m.items||[]).forEach(i=>{kcal+=(i.kcal||0);}));
+        return '<div style="background:#fff;border-radius:12px;border:1.5px solid '+(isSel?'#16a34a':isExp?'#111':'#eaeae6')+';overflow:hidden;">'+
+          // Cabecera opción
+          '<div style="padding:11px 13px;display:flex;align-items:center;gap:10px;">'+
+            '<button onclick="ncPickOption('+dayIdx+','+opt.option_number+')" style="flex:1;background:transparent;border:none;text-align:left;cursor:pointer;padding:0;font-family:\'DM Sans\',sans-serif;">'+
+              '<div style="display:flex;align-items:center;gap:8px;">'+
+                '<div style="width:18px;height:18px;border-radius:50%;border:2px solid '+(isSel?'#16a34a':'#ddd')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;background:'+(isSel?'#16a34a':'#fff')+';">'+
+                  (isSel?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')+
+                '</div>'+
+                '<div>'+
+                  '<div style="font-size:13px;font-weight:700;color:#111;">Opción '+opt.option_number+'</div>'+
+                  '<div style="font-size:11px;color:#bbb;font-weight:600;">'+Math.round(kcal)+' kcal</div>'+
+                '</div>'+
+              '</div>'+
+            '</button>'+
+            '<button onclick="ncToggleOptionDetails('+opt.option_number+')" style="background:'+(isExp?'#111':'#f5f5f3')+';border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-size:11px;font-weight:700;color:'+(isExp?'#fff':'#888')+';display:flex;align-items:center;gap:4px;">'+
+              (isExp?'Ocultar':'Ver comidas')+
+              '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;transform:'+(isExp?'rotate(180deg)':'rotate(0deg)')+'"><polyline points="6 9 12 15 18 9"/></svg>'+
+            '</button>'+
+          '</div>'+
+          // Detalle de comidas (si expandido)
+          (isExp?
+            '<div style="padding:0 13px 12px;border-top:1px solid #f0f0ee;">'+
+              ['desayuno','comida','merienda','cena'].map(mn=>{
+                const meals=opt.meals||{};
+                const realKey=Object.keys(meals).find(k=>k.toLowerCase()===mn);
+                const m=realKey?meals[realKey]:null;
+                if(!m||!m.items?.length)return '';
+                const mc=mealColors[mn]||{bg:'#f5f5f3',border:'#eaeae6',emoji:'🍽️'};
+                const mKcal=m.items.reduce((a,i)=>a+(i.kcal||0),0);
+                return '<div style="margin-top:10px;background:'+mc.bg+';border:1.5px solid '+mc.border+';border-radius:10px;padding:10px 12px;">'+
+                  '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'+
+                    '<div style="display:flex;align-items:center;gap:6px;">'+
+                      '<span style="font-size:14px;">'+mc.emoji+'</span>'+
+                      '<span style="font-size:12px;font-weight:700;color:#111;text-transform:capitalize;">'+mn+'</span>'+
+                    '</div>'+
+                    '<span style="font-size:11px;font-weight:700;color:#888;">'+Math.round(mKcal)+' kcal</span>'+
+                  '</div>'+
+                  '<div style="font-size:11.5px;color:#666;line-height:1.5;">'+
+                    m.items.map(it=>it.name+(it.grams?' ('+it.grams+'g)':'')).join(' · ')+
+                  '</div>'+
+                '</div>';
+              }).join('')+
+            '</div>':'')+
+        '</div>';
+      }).join('')+
+    '</div>'+
+  '</div>';
+}
+
+function ncToggleDay(i){
+  if(nutritionConfig.viewingDay===i){
+    nutritionConfig.viewingDay=null;
+    nutritionConfig.expandedOpt=null;
+  } else {
+    nutritionConfig.viewingDay=i;
+    nutritionConfig.expandedOpt=null;
+  }
+  renderNutritionConfigModal();
+}
+
+function ncToggleOptionDetails(optNum){
+  nutritionConfig.expandedOpt=nutritionConfig.expandedOpt===optNum?null:optNum;
+  renderNutritionConfigModal();
+}
+
+function ncPickOption(dayIdx, optNum){
+  const dk=DAY_KEYS[dayIdx];
+  nutritionConfig.draft[dk]=optNum;
+  // Cerrar el día tras elegir para guiar al siguiente
+  nutritionConfig.viewingDay=null;
+  nutritionConfig.expandedOpt=null;
+  renderNutritionConfigModal();
+}
+
+function ncGoToStep2(){
+  nutritionConfig.step=2;
+  renderNutritionConfigModal();
+}
+
+function ncGoToStep1(){
+  nutritionConfig.step=1;
+  renderNutritionConfigModal();
+}
+
+function ncRenderStep2(){
+  const SHORT2=['L','M','X','J','V','S','D'];
+  const draft=nutritionConfig.draft;
+  const totalsFor=(opt)=>{
+    if(!opt||!opt.meals)return {kcal:0,ch:0,g:0,p:0};
+    let kcal=0,ch=0,g=0,p=0;
+    Object.values(opt.meals).forEach(m=>(m.items||[]).forEach(i=>{kcal+=(i.kcal||0);ch+=(i.ch||0);g+=(i.g||0);p+=(i.p||0);}));
+    return {kcal,ch,g,p};
+  };
+
+  // Calcular media semanal
+  let weekKcal=0, days=0;
+  DAY_KEYS.forEach(dk=>{
+    const optNum=draft[dk];
+    if(optNum){
+      const opt=nutritionOptions.find(o=>o.option_number===optNum);
+      if(opt){const t=totalsFor(opt);weekKcal+=t.kcal;days++;}
+    }
+  });
+  const avgKcal=days?Math.round(weekKcal/days):0;
+
+  const header='<div style="padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1.5px solid #eaeae6;flex-shrink:0;">'+
+    '<div>'+
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:2px;">Paso 2 de 2 · Revisar</div>'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;letter-spacing:-.4px;line-height:1.1;">Tu semana lista.</div>'+
+    '</div>'+
+    '<button onclick="closeNutritionConfig()" style="width:36px;height:36px;border-radius:50%;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+    '</button>'+
+  '</div>';
+
+  // Card de media semanal
+  const summary='<div style="padding:18px 16px 12px;">'+
+    '<div style="background:linear-gradient(135deg,#111 0%,#1a2e1a 100%);border-radius:20px;padding:18px;position:relative;overflow:hidden;">'+
+      '<div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.15) 0%,transparent 70%);pointer-events:none;"></div>'+
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:6px;position:relative;">Media semanal</div>'+
+      '<div style="display:flex;align-items:flex-end;gap:6px;position:relative;">'+
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:48px;color:#fff;letter-spacing:-2px;line-height:1;">'+avgKcal.toLocaleString('es-ES')+'</div>'+
+        '<div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:8px;">kcal/día</div>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+
+  // Lista resumen días
+  const daysList='<div style="padding:0 16px;display:flex;flex-direction:column;gap:6px;">'+
+    DAY_KEYS.map((dk,i)=>{
+      const optNum=draft[dk];
+      const opt=optNum?nutritionOptions.find(o=>o.option_number===optNum):null;
+      const tot=opt?totalsFor(opt):null;
+      return '<div style="background:#fff;border-radius:12px;border:1.5px solid #eaeae6;padding:11px 14px;display:flex;align-items:center;gap:11px;">'+
+        '<div style="width:30px;height:30px;border-radius:8px;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+          '<span style="font-size:11px;font-weight:800;color:#16a34a;">'+SHORT2[i]+'</span>'+
+        '</div>'+
+        '<div style="flex:1;min-width:0;">'+
+          '<div style="font-size:12.5px;font-weight:700;color:#111;">'+DAYS[i]+'</div>'+
+          '<div style="font-size:11px;color:#bbb;font-weight:600;">'+(opt?'Opción '+optNum:'Sin asignar')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right;">'+
+          '<div style="font-size:13px;font-weight:700;color:#111;">'+(tot?Math.round(tot.kcal):'—')+'</div>'+
+          '<div style="font-size:9px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.04em;">kcal</div>'+
+        '</div>'+
+      '</div>';
+    }).join('')+
+  '</div>';
+
+  const footer='<div style="padding:14px 16px 18px;background:#fff;border-top:1.5px solid #eaeae6;flex-shrink:0;display:flex;gap:8px;">'+
+    '<button onclick="ncGoToStep1()" style="flex:1;height:48px;border-radius:14px;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;font-size:14px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">'+
+      '← Volver'+
+    '</button>'+
+    '<button onclick="ncSaveAll()" style="flex:2;height:48px;border-radius:14px;background:#16a34a;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">'+
+      'Guardar plan'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'+
+    '</button>'+
+  '</div>';
+
+  return header+
+    '<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px;">'+
+      summary+daysList+
+    '</div>'+
+    footer;
+}
+
+async function ncSaveAll(){
+  if(!clientData||!activeNutritionPlan)return;
+  const draft=nutritionConfig.draft;
+  const wkStart=getWeekStart();
+  const payload={
+    client_id:clientData.id,
+    nutrition_plan_id:activeNutritionPlan.id,
+    week_start:wkStart,
+    configured_at:new Date().toISOString()
+  };
+  DAY_KEYS.forEach(dk=>{payload[dk+'_option']=draft[dk];});
+
+  // Botón ocupado
+  const btns=document.querySelectorAll('#nutrition-config-modal button');
+  btns.forEach(b=>{b.disabled=true;b.style.opacity='.6';});
+
+  let ok=false;
+  if(weeklyNutrition){
+    const upd={configured_at:payload.configured_at};
+    DAY_KEYS.forEach(dk=>{upd[dk+'_option']=payload[dk+'_option'];});
+    const {data,error}=await sb.from('weekly_nutrition').update(upd).eq('id',weeklyNutrition.id).select().single();
+    if(error){console.error('weekly_nutrition update error:',error);}
+    else if(data){weeklyNutrition=data;ok=true;}
+  } else {
+    const {data,error}=await sb.from('weekly_nutrition').insert(payload).select().single();
+    if(error){console.error('weekly_nutrition insert error:',error);}
+    else if(data){weeklyNutrition=data;ok=true;}
+  }
+
+  if(!ok){
+    btns.forEach(b=>{b.disabled=false;b.style.opacity='1';});
+    showToast('No se pudo guardar. Inténtalo de nuevo.','err');
+    return;
+  }
+  showToast('Plan semanal guardado ✓','ok');
+  closeNutritionConfig();
 }
 
 
@@ -2315,7 +2674,10 @@ async function saveSetV2(exO,si,descanso,totalSeries){
   if(clientData){
     const date=getDayDate(di);
     const weekPlan=getWeekPlan(wk);
-    const sessionType=state.trainSession||(dd.sessionOverride||weekPlan[di]);
+    // Fuente de verdad: el plan del DÍA que se está entrenando.
+    // (Antes usaba state.trainSession primero, lo que causaba que un valor obsoleto
+    // del estado UI sobrescribiera el tipo correcto del día — bug 25-may PUSH→PULL.)
+    const sessionType=(dd.sessionOverride||weekPlan[di])||state.trainSession;
     // Get or create workout_session
     let sess=sessionsCache[date];
     if(!sess){
@@ -2534,16 +2896,21 @@ function finishSession(current,di,savedSeries,totalSeries,totalEx){
 }
 
 async function _doFinish(current,di,savedSeries,totalSeries,totalEx,dd,exs,pct){
-  dd.sessionSaved=true;dd.sessionName=current;
+  // Verdad única: el tipo guardado es el del PLAN del día que se está entrenando.
+  // Solo caemos al `current` recibido (de la UI) si no hay nada en el plan.
+  // Esto evita guardar mal el tipo si la variable de estado quedó obsoleta.
+  const wk=weekKey();
+  const tipoReal=(dd.sessionOverride||getWeekPlan(wk)[di])||current;
+  dd.sessionSaved=true;dd.sessionName=tipoReal;
   // Guardar en Supabase
   if(clientData){
     const date=getDayDate(di);
     let sess=sessionsCache[date];
     if(sess){
-      await sb.from('workout_sessions').update({completed:true,session_type:current}).eq('id',sess.id);
-      sessionsCache[date]={...sess,completed:true,session_type:current};
+      await sb.from('workout_sessions').update({completed:true,session_type:tipoReal}).eq('id',sess.id);
+      sessionsCache[date]={...sess,completed:true,session_type:tipoReal};
     } else {
-      const {data}=await sb.from('workout_sessions').insert({client_id:clientData.id,session_date:date,session_type:current,completed:true}).select('*').single();
+      const {data}=await sb.from('workout_sessions').insert({client_id:clientData.id,session_date:date,session_type:tipoReal,completed:true}).select('*').single();
       if(data){sessionsCache[date]={...data,workout_sets:[]};}
     }
     rebuildGymData();
