@@ -960,14 +960,22 @@ const Cycle = (function(){
   function resolveOffset(adjustments,targetYMD){
     if(!Array.isArray(adjustments)||adjustments.length===0)return 0;
     const targetN=dayNumber(targetYMD);
-    let best=null;
+    let best=null; // {n, offset, ts, idx}
     for(let i=0;i<adjustments.length;i++){
       const adj=adjustments[i];if(!adj)continue;
       const eff=toYMD(adj.effective_date);if(!eff)continue;
       const n=dayNumber(eff);
       if(n<=targetN){
-        if(best===null||n>best.n||(n===best.n&&num(adj.offset_days)>best.offset)){
-          best={n:n,offset:num(adj.offset_days)};
+        // Desempate a IGUAL fecha: gana el ajuste más reciente
+        // (created_at si existe; si no, el último del array = última inserción).
+        const ts=adj.created_at?Date.parse(adj.created_at):NaN;
+        if(best===null || n>best.n ||
+           (n===best.n && (
+             (!isNaN(ts)&&!isNaN(best.ts)&&ts>=best.ts) ||
+             (isNaN(ts)&&isNaN(best.ts)&&i>=best.idx) ||
+             (!isNaN(ts)&&isNaN(best.ts)) // el que tiene fecha gana al que no
+           ))){
+          best={n:n,offset:num(adj.offset_days),ts:ts,idx:i};
         }
       }
     }
@@ -993,7 +1001,7 @@ const Cycle = (function(){
     return weekDates.map(function(d){return sessionForDate(startDate,split,d,adjustments);});
   }
   return {cyclePositionForDate:cyclePositionForDate,sessionForDate:sessionForDate,
-          weekPlanForDates:weekPlanForDates,resolveOffset:resolveOffset};
+          weekPlanForDates:weekPlanForDates,resolveOffset:resolveOffset,_toYMD:toYMD};
 })();
 
 /* Lunes (local, seguro frente a TZ) de la semana que contiene `d`. */
@@ -1088,6 +1096,65 @@ async function migrateLocalReordersToSupabase(){
     }
   }catch(e){console.error('migrateLocalReorders:',e);}
 }
+
+/* ── FASE 4: RETRASAR SPLIT (solo splits de ciclo, longitud != 7) ──────────
+   Fecha de hoy en formato 'YYYY-MM-DD' con componentes LOCALES (sin
+   toISOString → inmune a TZ, ver §7). */
+function hoyLocalStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* Offset (días de retraso) vigente HOY según el histórico split_adjustments. */
+function offsetVigenteHoy(){
+  try{ return Cycle.resolveOffset(splitAdjustments, Cycle._toYMD(hoyLocalStr())); }
+  catch(e){ return 0; }
+}
+
+/* Cambia el retraso del split en N (puede ser +1 o −1). Inserta una fila
+   nueva en split_adjustments con effective_date=hoy y el offset acumulado
+   resultante (nunca < 0). Modelo histórico (§3/§4). */
+async function cambiarRetrasoSplit(delta){
+  if(!clientData||!sb)return;
+  const actual=offsetVigenteHoy();
+  const nuevo=Math.max(0, actual+delta);
+  if(nuevo===actual)return; // ya está en 0 y se intenta bajar: nada que hacer
+  const fila={
+    client_id: clientData.id,
+    mesocycle_id: (activeMeso&&activeMeso.id)||null,
+    effective_date: hoyLocalStr(),
+    offset_days: nuevo,
+    reason: delta>0?'Retraso del split por el cliente':'Ajuste del retraso por el cliente'
+  };
+  // Caché local inmediata (la UI responde ya): añadimos la fila al histórico
+  splitAdjustments.push({effective_date:fila.effective_date, offset_days:fila.offset_days});
+  try{
+    const {error}=await sb.from('split_adjustments').insert(fila);
+    if(error){console.error('split_adjustments insert error:',error);showToast('Error al guardar el retraso','red','Comprueba tu conexión');}
+    else{showToast(nuevo>actual?'Split retrasado ✓':'Retraso reducido ✓','green');}
+  }catch(e){console.error('cambiarRetrasoSplit:',e);}
+  render();
+}
+
+/* UI del control de retraso (tarjeta verde, solo splits de ciclo). */
+function renderRetrasarSplit(){
+  const off=offsetVigenteHoy();
+  return ''+
+    '<div style="margin-top:12px;padding:12px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
+        '<div>'+
+          '<div style="font-size:11px;font-weight:700;color:#fff;">Retrasar el split</div>'+
+          '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;">'+(off>0?('Retrasado '+off+' día'+(off===1?'':'s')):'Al día con el calendario')+'</div>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:8px;">'+
+          '<button onclick="cambiarRetrasoSplit(-1)" '+(off<=0?'disabled':'')+' style="width:30px;height:30px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-weight:700;cursor:'+(off<=0?'default':'pointer')+';opacity:'+(off<=0?'.4':'1')+';">−</button>'+
+          '<span style="font-size:15px;font-weight:800;color:#fff;min-width:20px;text-align:center;">'+off+'</span>'+
+          '<button onclick="cambiarRetrasoSplit(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-weight:700;cursor:pointer;">+</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+}
+
 function getDayData(wk,di){
   if(!gymData[wk])gymData[wk]={};
   if(!gymData[wk][di])gymData[wk][di]={pasos:'',peso:'',sueno:'',entreno:'',sets:{},savedSets:{},notas:'',sessionOverride:null,sessionSaved:false};
@@ -1299,13 +1366,10 @@ function renderHome(){
       SESSIONS.map(s=>'<div onclick="setOverrideForDay('+di+',\''+s+'\')" style="height:28px;padding:0 12px;border-radius:14px;font-size:11px;font-weight:700;display:flex;align-items:center;cursor:pointer;background:'+(s===active?'#fff':'rgba(255,255,255,.15)')+';color:'+(s===active?'#166534':'rgba(255,255,255,.8)')+';border:1.5px solid '+(s===active?'#fff':'rgba(255,255,255,.3)')+';transition:all .15s;">'+s+'</div>').join('')+
       '<div onclick="setOverrideForDay('+di+',\'DESCANSO\')" style="height:28px;padding:0 12px;border-radius:14px;font-size:11px;font-weight:700;display:flex;align-items:center;cursor:pointer;background:'+(isRestToken(active)?'#fff':'rgba(255,255,255,.15)')+';color:'+(isRestToken(active)?'#166534':'rgba(255,255,255,.8)')+';border:1.5px solid '+(isRestToken(active)?'#fff':'rgba(255,255,255,.3)')+';transition:all .15s;">DSC</div>'+
     '</div>'+
-    // Botón "Reorganizar semana" SOLO para splits de ciclo (8+ días).
-    // En splits semanales (7) los chips por día ya bastan para ajustar.
-    // [DEBUG TEMPORAL] mostrar longitud del split leído por MyTracc
-    '<div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,.5);text-align:center;">DEBUG · split len: '+(activePlan&&activePlan.split?activePlan.split.length:'sin split')+'</div>'+
+    // Control de ciclo SOLO para splits de ciclo (8+ días):
+    // "retrasar split N días" (empuja el ciclo adelante). NO arrastrar.
     ((activePlan&&Array.isArray(activePlan.split)&&activePlan.split.length>=8)?
-      '<button onclick="toggleWeekReorder()" style="margin-top:12px;width:100%;height:32px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">📅 '+(state.showWeekReorder?'Cerrar reorganización':'Reorganizar semana')+'</button>'+
-      (state.showWeekReorder?renderWeekReorder(weekKey(),weekPlan):'')
+      renderRetrasarSplit()
     :'')+
   '</div>';
 
