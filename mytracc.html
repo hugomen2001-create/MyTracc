@@ -996,13 +996,31 @@ const Cycle = (function(){
     if(pos===null)return null;
     return split[pos];
   }
+  /* ¿La fecha cae en algún rango de pausa [pause_from, effective_date)?
+     Cada ajuste con pause_from define un parón: esos días son descanso forzado. */
+  function isInPause(queryDate, adjustments){
+    if(!Array.isArray(adjustments))return false;
+    const q=dayNumber(toYMD(queryDate));
+    for(let i=0;i<adjustments.length;i++){
+      const a=adjustments[i];if(!a||!a.pause_from||!a.effective_date)continue;
+      const pf=toYMD(a.pause_from), ed=toYMD(a.effective_date);
+      if(!pf||!ed)continue;
+      const from=dayNumber(pf), to=dayNumber(ed); // [from, to)
+      if(q>=from && q<to)return true;
+    }
+    return false;
+  }
   function weekPlanForDates(startDate,split,weekDates,adjustments){
     if(!Array.isArray(weekDates))return [];
-    return weekDates.map(function(d){return sessionForDate(startDate,split,d,adjustments);});
+    return weekDates.map(function(d){
+      // Día en pausa (parón) → descanso forzado.
+      if(isInPause(d,adjustments))return 'DESCANSO';
+      return sessionForDate(startDate,split,d,adjustments);
+    });
   }
   return {cyclePositionForDate:cyclePositionForDate,sessionForDate:sessionForDate,
-          weekPlanForDates:weekPlanForDates,resolveOffset:resolveOffset,_toYMD:toYMD,
-          _diffDays:function(a,b){return diffDays(toYMD(a),toYMD(b));}};
+          weekPlanForDates:weekPlanForDates,resolveOffset:resolveOffset,isInPause:isInPause,
+          _toYMD:toYMD,_diffDays:function(a,b){return diffDays(toYMD(a),toYMD(b));}};
 })();
 
 /* Lunes (local, seguro frente a TZ) de la semana que contiene `d`. */
@@ -1112,35 +1130,41 @@ function offsetVigenteHoy(){
   catch(e){ return 0; }
 }
 
-/* Estado del editor de retraso (solo si la lista está abierta). */
-let retrasoEditor={abierto:false};
+/* Estado del editor de retraso.
+   paso: 'cerrado' | 'parar' (elige día que dejó) | 'reanudar' (elige día que retoma)
+   pararStr: día elegido para parar (YYYY-MM-DD). */
+let retrasoEditor={paso:'cerrado', pararStr:null};
 
-function abrirRetraso(){ retrasoEditor.abierto=true; render(); }
-function cancelarRetraso(){ retrasoEditor.abierto=false; render(); }
+function abrirRetraso(){ retrasoEditor={paso:'parar', pararStr:null}; render(); }
+function cancelarRetraso(){ retrasoEditor={paso:'cerrado', pararStr:null}; render(); }
+function elegirDiaParar(fechaStr){ retrasoEditor={paso:'reanudar', pararStr:fechaStr}; render(); }
 
-/* Guarda el retraso: el cliente eligió reanudar el día `fechaStr` (YYYY-MM-DD).
-   El offset acumulado se calcula como (offset vigente hoy) + (días de parón).
-   effective_date = HOY (desde hoy aplica el descanso forzado hasta reanudar). */
-async function guardarRetraso(fechaReanudarStr){
+/* Guarda el retraso. Modelo "reanudar":
+   - pararStr  = día en que dejas de entrenar (primer día de pausa).
+   - reanudarStr = día en que retomas (effective_date).
+   - offset acumulado = offset vigente + (días entre parar y reanudar).
+   - rango de pausa [pararStr, reanudarStr) → descanso forzado.
+   El día de reanudar muestra la sesión que tocaba el día de parar y el ciclo sigue. */
+async function guardarRetraso(reanudarStr){
   if(!clientData||!sb||!activeMeso||!activeMeso.start_date)return;
-  const hoy=hoyLocalStr();
-  // días de parón = días entre hoy y el día de reanudar
-  const diff=Cycle._diffDays?Cycle._diffDays(fechaReanudarStr,hoy):0;
-  const paron=Math.max(0, diff);
+  const pararStr=retrasoEditor.pararStr;
+  if(!pararStr){cancelarRetraso();return;}
+  const paron=Math.max(0, Cycle._diffDays(reanudarStr, pararStr));
   if(paron<=0){cancelarRetraso();return;}
-  const actual=offsetVigenteHoy();
+  const actual=Cycle.resolveOffset(splitAdjustments, Cycle._toYMD(reanudarStr));
   const nuevo=actual+paron;
   const nowIso=new Date().toISOString();
   const fila={
     client_id: clientData.id,
     mesocycle_id: (activeMeso&&activeMeso.id)||null,
-    effective_date: hoy,
+    pause_from: pararStr,
+    effective_date: reanudarStr,
     offset_days: nuevo,
-    reason: 'Reanuda el '+fechaReanudarStr+' (parón de '+paron+' día'+(paron===1?'':'s')+')'
+    reason: 'Pausa '+pararStr+' → reanuda '+reanudarStr+' ('+paron+' día'+(paron===1?'':'s')+')'
   };
-  // Caché local CON created_at (ahora) → gana siempre al releer, sin F5.
-  splitAdjustments.push({effective_date:hoy, offset_days:nuevo, created_at:nowIso});
-  retrasoEditor={abierto:false};
+  // Caché local CON created_at y pause_from → se refleja al instante (sin F5).
+  splitAdjustments.push({pause_from:pararStr, effective_date:reanudarStr, offset_days:nuevo, created_at:nowIso});
+  retrasoEditor={paso:'cerrado', pararStr:null};
   try{
     const {error}=await sb.from('split_adjustments').insert(fila);
     if(error){console.error('split_adjustments insert error:',error);showToast('Error al guardar','red','Comprueba tu conexión');}
@@ -1149,15 +1173,15 @@ async function guardarRetraso(fechaReanudarStr){
   render();
 }
 
-/* Pone el split de nuevo al día (offset 0 desde hoy). */
+/* Pone el split de nuevo al día (offset 0 desde hoy, sin pausa). */
 async function quitarRetraso(){
   if(!clientData||!sb)return;
   if(offsetVigenteHoy()<=0){cancelarRetraso();return;}
   const hoy=hoyLocalStr();
   const nowIso=new Date().toISOString();
-  const fila={client_id:clientData.id, mesocycle_id:(activeMeso&&activeMeso.id)||null, effective_date:hoy, offset_days:0, reason:'Split al día (cliente)'};
-  splitAdjustments.push({effective_date:hoy, offset_days:0, created_at:nowIso});
-  retrasoEditor={abierto:false};
+  const fila={client_id:clientData.id, mesocycle_id:(activeMeso&&activeMeso.id)||null, pause_from:null, effective_date:hoy, offset_days:0, reason:'Split al día (cliente)'};
+  splitAdjustments.push({pause_from:null, effective_date:hoy, offset_days:0, created_at:nowIso});
+  retrasoEditor={paso:'cerrado', pararStr:null};
   try{
     const {error}=await sb.from('split_adjustments').insert(fila);
     if(error){console.error('quitarRetraso error:',error);showToast('Error al guardar','red');}
@@ -1166,51 +1190,61 @@ async function quitarRetraso(){
   render();
 }
 
+/* Lista de días seleccionables (de −7 a +14 respecto a hoy), para parar o reanudar.
+   onlyAfter: si se pasa una fecha, solo muestra días posteriores a ella. */
+function listaDiasRetraso(onClickFn, onlyAfterStr){
+  const hoy=new Date();
+  const diasNombre=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const finEstaSemana=6-((hoy.getDay()+6)%7);
+  const afterN = onlyAfterStr ? Cycle._diffDays(onlyAfterStr, hoyLocalStr()) : null;
+  let opciones='';
+  for(let k=-7;k<=14;k++){
+    if(afterN!==null && k<=afterN) continue; // reanudar debe ser posterior a parar
+    const d=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()+k);
+    const fechaStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    let etiqueta=diasNombre[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);
+    if(k===0)etiqueta+=' · hoy';
+    else if(k<0)etiqueta+=' · pasado';
+    else if(k>finEstaSemana)etiqueta+=' · próx. sem.';
+    opciones+='<button onclick="'+onClickFn+'(\''+fechaStr+'\')" style="width:100%;text-align:left;padding:9px 12px;margin-bottom:5px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">'+etiqueta+'</button>';
+  }
+  return opciones;
+}
+
 /* UI del control de retraso (tarjeta verde, solo splits de ciclo).
-   Flujo simple: botón "Retrasar" → lista de días para REANUDAR → al tocar un
-   día se aplica y refresca al instante (sin F5). */
+   Colapsado: solo el botón "Retrasar". Al pulsar, despliega los dos pasos. */
 function renderRetrasarSplit(){
-  // El ciclo necesita un "Día 1" = start_date del mesociclo. Sin él, avisar.
   if(!activeMeso||!activeMeso.start_date){
     return ''+
-      '<div style="margin-top:12px;padding:12px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;">'+
-        '<div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:3px;">Retrasar el split</div>'+
+      '<div style="margin-top:12px;padding:11px 14px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;">'+
         '<div style="font-size:10px;color:rgba(255,255,255,.65);line-height:1.4;">Tu entrenador debe configurar la fecha de inicio del mesociclo para poder retrasar el split.</div>'+
       '</div>';
   }
   const off=offsetVigenteHoy();
 
-  let html='<div style="margin-top:12px;padding:12px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;">'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
-      '<div>'+
-        '<div style="font-size:11px;font-weight:700;color:#fff;">Retrasar el split</div>'+
-        '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;">'+(off>0?('Retrasado '+off+' día'+(off===1?'':'s')):'Al día con el calendario')+'</div>'+
-      '</div>'+
-      (!retrasoEditor.abierto?
-        '<button onclick="abrirRetraso()" style="height:30px;padding:0 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:11px;font-weight:700;cursor:pointer;">'+(off>0?'Cambiar':'Retrasar')+'</button>'
-        :'')+
-    '</div>';
+  // COLAPSADO: solo botón (limpio).
+  if(retrasoEditor.paso==='cerrado'){
+    return '<button onclick="abrirRetraso()" style="margin-top:12px;width:100%;height:34px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">📅 '+(off>0?('Split retrasado '+off+' día'+(off===1?'':'s')+' · ajustar'):'Retrasar split')+'</button>';
+  }
 
-  // Lista de días para REANUDAR (desde mañana hasta +14 días)
-  if(retrasoEditor.abierto){
-    const hoy=new Date();
-    const diasNombre=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    const finEstaSemana=6-((hoy.getDay()+6)%7); // días que quedan hasta el domingo
-    let opciones='';
-    for(let k=1;k<=14;k++){
-      const d=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()+k);
-      const fechaStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      const sem=k>finEstaSemana?' · próx. semana':'';
-      const etiqueta=diasNombre[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1)+sem;
-      opciones+='<button onclick="guardarRetraso(\''+fechaStr+'\')" style="width:100%;text-align:left;padding:9px 12px;margin-bottom:5px;border-radius:8px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">'+etiqueta+'</button>';
+  // DESPLEGADO
+  let html='<div style="margin-top:12px;padding:14px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:12px;">';
+
+  if(retrasoEditor.paso==='parar'){
+    html+='<div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:2px;">Retrasar el split</div>'+
+      '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;margin:8px 0;">Paso 1 · ¿Desde qué día paras?</div>'+
+      '<div style="max-height:200px;overflow-y:auto;">'+listaDiasRetraso('elegirDiaParar',null)+'</div>';
+    if(off>0){
+      html+='<button onclick="quitarRetraso()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;">↺ Poner el split al día</button>';
     }
-    html+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);">'+
-      '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">¿Qué día reanudas el entreno?</div>'+
-      '<div style="max-height:200px;overflow-y:auto;">'+opciones+'</div>'+
-      '<button onclick="cancelarRetraso()" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Cancelar</button>'+
-    '</div>';
-  } else if(off>0){
-    html+='<button onclick="quitarRetraso()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Poner el split al día</button>';
+    html+='<button onclick="cancelarRetraso()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Cancelar</button>';
+  } else if(retrasoEditor.paso==='reanudar'){
+    const p=retrasoEditor.pararStr;
+    html+='<div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:2px;">Retrasar el split</div>'+
+      '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:2px;">Paras desde: '+p+'</div>'+
+      '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;margin:8px 0;">Paso 2 · ¿Qué día reanudas?</div>'+
+      '<div style="max-height:200px;overflow-y:auto;">'+listaDiasRetraso('guardarRetraso',p)+'</div>'+
+      '<button onclick="cancelarRetraso()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Cancelar</button>';
   }
 
   html+='</div>';
