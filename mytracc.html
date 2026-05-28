@@ -725,12 +725,31 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const SHORT=['L','M','X','J','V','S','D'];
 const DEFAULT_PLAN=['DESCANSO','TORSO','DESCANSO','LEG','PUSH','PULL','DESCANSO'];
-const SESSIONS=['LEG','PULL','PUSH','TORSO'];
+// SESSIONS = tipos de entreno reales del cliente (de su plan), NO una lista fija.
+// Se recalcula con recomputeSessions() tras cargar el plan desde Supabase.
+let SESSIONS=['LEG','PULL','PUSH','TORSO']; // fallback inicial hasta cargar plan
 const DAY_KEYS=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
-// MESO2 se carga dinámicamente desde Supabase (client_plans + exercises)
-// Se rellena en initApp() con loadClientPlan()
-let MESO2={};
+// Tokens que representan DESCANSO (en split de Supabase puede venir 'OFF';
+// el código usa 'DESCANSO'/'DSC'). Nunca son chips de entreno.
+const REST_TOKENS=['OFF','DESCANSO','DSC','REST',''];
+function isRestToken(t){return !t||REST_TOKENS.includes(String(t).toUpperCase().trim());}
+
+// Deriva los tipos de entreno reales del cliente: unión de los tipos que
+// aparecen en su split + los que tienen ejercicios en MESO2 (client_plans),
+// excluyendo descansos. Mantiene el orden del split y añade extras al final.
+function recomputeSessions(){
+  const seen=new Set();
+  const out=[];
+  const add=(t)=>{ if(!t||isRestToken(t))return; const k=String(t).toUpperCase().trim(); if(!seen.has(k)){seen.add(k);out.push(t);} };
+  // 1) orden según el split del plan
+  if(activePlan&&Array.isArray(activePlan.split))activePlan.split.forEach(add);
+  // 2) tipos con ejercicios en MESO2 que no estuvieran ya
+  if(MESO2&&typeof MESO2==='object')Object.keys(MESO2).forEach(add);
+  // 3) si no hay nada (cliente sin plan), mantener el fallback
+  SESSIONS = out.length ? out : ['LEG','PULL','PUSH','TORSO'];
+  return SESSIONS;
+}
 
 const DIET={
   Lunes:{desayuno:'100g Pan\n3 huevos\n100ml Clara de huevo',comida:'250g Pavo/Pollo\n40g Pasta\n150g Cebolla\nManzana',merienda:'25g Caseína\nManzana',cena:'200g Contramuslo Pollo\n200g Boniato\n150g Cebolla'},
@@ -752,6 +771,7 @@ let activePlan=null, planExercises=[];
 let activeNutritionPlan=null, nutritionOptions=[], weeklyNutrition=null;
 let activeMeso=null;
 let splitAdjustments=[]; // histórico de desplazamientos del split (split_adjustments)
+let weekReorders={}; // week_key -> plan[] (reorganización semanal desde week_reorders en Supabase)
 let metricsCache={}; // date -> daily_metrics row
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
@@ -989,7 +1009,10 @@ function currentWeekDates(){
 }
 
 function getWeekPlan(wk){
-  // 1) Override semanal en localStorage (reorganizar semana) — máxima prioridad.
+  // 1) Reorganización semanal — máxima prioridad.
+  //    Fuente principal: Supabase (weekReorders). Fallback: localStorage viejo
+  //    (por si aún no se ha migrado; la migración lo sube y limpia).
+  if(weekReorders&&Array.isArray(weekReorders[wk]))return [...weekReorders[wk]];
   const override=JSON.parse(localStorage.getItem('weekOverride_'+wk)||'null');
   if(override)return override;
 
@@ -1014,6 +1037,53 @@ function getWeekPlan(wk){
   // 3) Fallback al comportamiento ANTERIOR (no romper clientes sin datos).
   if(split)return [...split];
   return [...DEFAULT_PLAN];
+}
+
+/* Plan "base" de una semana SIN aplicar reorganización (para poder ofrecer
+   reorganizar incluso cuando aún no hay ninguna guardada). */
+function getBaseWeekPlan(wk){
+  const split=(activePlan&&Array.isArray(activePlan.split)&&activePlan.split.length)?activePlan.split:null;
+  if(split&&split.length===7)return [...split];
+  if(split&&activeMeso&&activeMeso.start_date){
+    const cyclePlan=Cycle.weekPlanForDates(activeMeso.start_date,split,currentWeekDates(),splitAdjustments);
+    return cyclePlan.map(function(s){return s==null?'DESCANSO':s;});
+  }
+  if(split)return [...split];
+  return [...DEFAULT_PLAN];
+}
+
+/* Guarda la reorganización de una semana en Supabase (upsert: una fila por
+   cliente+semana, se sobrescribe). Actualiza la caché local y limpia el
+   override viejo de localStorage. */
+async function saveWeekReorder(wk,plan){
+  if(!Array.isArray(plan))return;
+  weekReorders[wk]=[...plan]; // caché local inmediata (UI responde ya)
+  try{ localStorage.removeItem('weekOverride_'+wk); }catch(e){}
+  if(!clientData||!sb){return;}
+  try{
+    const {error}=await sb.from('week_reorders')
+      .upsert({client_id:clientData.id,week_key:wk,plan:plan,updated_at:new Date().toISOString()},
+              {onConflict:'client_id,week_key'});
+    if(error){console.error('week_reorders upsert error:',error);showToast('Error al guardar reorganización','red','Comprueba tu conexión');}
+  }catch(e){console.error('saveWeekReorder:',e);}
+}
+
+/* Migración suave: sube a Supabase los overrides de localStorage que aún no
+   estén en weekReorders, para no perder reorganizaciones existentes. */
+async function migrateLocalReordersToSupabase(){
+  if(!clientData||!sb)return;
+  try{
+    const keys=Object.keys(localStorage).filter(k=>k.indexOf('weekOverride_')===0);
+    for(const k of keys){
+      const wk=k.slice('weekOverride_'.length);
+      if(weekReorders[wk])continue; // ya existe en Supabase, no pisar
+      let plan=null;
+      try{plan=JSON.parse(localStorage.getItem(k)||'null');}catch(e){}
+      if(Array.isArray(plan)&&plan.length){
+        await saveWeekReorder(wk,plan); // sube y limpia el local
+      }
+    }
+  }catch(e){console.error('migrateLocalReorders:',e);}
 }
 function getDayData(wk,di){
   if(!gymData[wk])gymData[wk]={};
@@ -1224,12 +1294,14 @@ function renderHome(){
     '<div style="font-size:12px;color:rgba(255,255,255,.65);margin-bottom:14px;">'+(isTrain?'Sesión según tu plan semanal':'Día de descanso · Recuperación activa')+'</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
       SESSIONS.map(s=>'<div onclick="setOverrideForDay('+di+',\''+s+'\')" style="height:28px;padding:0 12px;border-radius:14px;font-size:11px;font-weight:700;display:flex;align-items:center;cursor:pointer;background:'+(s===active?'#fff':'rgba(255,255,255,.15)')+';color:'+(s===active?'#166534':'rgba(255,255,255,.8)')+';border:1.5px solid '+(s===active?'#fff':'rgba(255,255,255,.3)')+';transition:all .15s;">'+s+'</div>').join('')+
-      '<div onclick="setOverrideForDay('+di+',\'DESCANSO\')" style="height:28px;padding:0 12px;border-radius:14px;font-size:11px;font-weight:700;display:flex;align-items:center;cursor:pointer;background:'+('DESCANSO'===active?'#fff':'rgba(255,255,255,.15)')+';color:'+('DESCANSO'===active?'#166534':'rgba(255,255,255,.8)')+';border:1.5px solid '+('DESCANSO'===active?'#fff':'rgba(255,255,255,.3)')+';transition:all .15s;">DSC</div>'+
+      '<div onclick="setOverrideForDay('+di+',\'DESCANSO\')" style="height:28px;padding:0 12px;border-radius:14px;font-size:11px;font-weight:700;display:flex;align-items:center;cursor:pointer;background:'+(isRestToken(active)?'#fff':'rgba(255,255,255,.15)')+';color:'+(isRestToken(active)?'#166534':'rgba(255,255,255,.8)')+';border:1.5px solid '+(isRestToken(active)?'#fff':'rgba(255,255,255,.3)')+';transition:all .15s;">DSC</div>'+
     '</div>'+
-    (dd.sessionOverride&&dd.sessionOverride!==weekPlan[di]?
-      '<button onclick="toggleWeekReorder()" style="margin-top:10px;width:100%;height:30px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;">📅 Reorganizar semana</button>'+
+    // Botón "Reorganizar semana" SOLO para splits de ciclo (8+ días).
+    // En splits semanales (7) los chips por día ya bastan para ajustar.
+    ((activePlan&&Array.isArray(activePlan.split)&&activePlan.split.length>=8)?
+      '<button onclick="toggleWeekReorder()" style="margin-top:12px;width:100%;height:32px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">📅 '+(state.showWeekReorder?'Cerrar reorganización':'Reorganizar semana')+'</button>'+
       (state.showWeekReorder?renderWeekReorder(weekKey(),weekPlan):'')
-    : '')+
+    :'')+
   '</div>';
 
   // Metric cards nuevo diseño
@@ -2036,7 +2108,7 @@ function renderWeekReorder(wk,weekPlan){
 function setWeekDayPlan(di,val,wk){
   const current=getWeekPlan(wk);
   current[di]=val;
-  localStorage.setItem('weekOverride_'+wk,JSON.stringify(current));
+  saveWeekReorder(wk,current); // → Supabase (+ caché + limpia localStorage)
   showToast('Plan actualizado ✓','green');
   render();
 }
@@ -2096,7 +2168,7 @@ function initDragList(){
     const els=items();
     const oldPlan=getWeekPlan(wk);
     const newPlan=els.map(el=>oldPlan[getIdx(el)]);
-    localStorage.setItem('weekOverride_'+wk,JSON.stringify(newPlan));
+    saveWeekReorder(wk,newPlan); // → Supabase (+ caché + limpia localStorage)
     els.forEach((el,i)=>el.dataset.idx=i);
     showToast('Semana reorganizada ✓','green');
     render();
@@ -2109,10 +2181,10 @@ function selectHomeDay(i){
 }
 function setOverrideForDay(di,session){
   const wk=weekKey();
-  // Actualizar localStorage override
+  // Construir el plan de la semana con el día cambiado y guardarlo en Supabase
   const current=getWeekPlan(wk);
   current[di]=session;
-  localStorage.setItem('weekOverride_'+wk,JSON.stringify(current));
+  saveWeekReorder(wk,current); // → Supabase (+ caché + limpia localStorage)
   // Actualizar gymData local también
   if(!gymData[wk])gymData[wk]={};
   if(!gymData[wk][di])gymData[wk][di]={pasos:'',peso:'',sueno:'',entreno:'',sets:{},savedSets:{},notas:'',sessionOverride:null,sessionSaved:false};
@@ -4203,20 +4275,31 @@ async function initApp(user){
     if(client.status==='pending'){showScreen('pending');return;}
 
     // Cargar datos en paralelo
-    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes]=await Promise.all([
+    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('daily_metrics').select('*').eq('client_id',client.id).gte('date',getWeekStart90()).order('date'),
       sb.from('workout_sessions').select('*,workout_sets(*)').eq('client_id',client.id).gte('session_date',getWeekStart90()).order('session_date'),
       sb.from('cheats').select('*').eq('client_id',client.id).order('date',{ascending:false}).limit(100),
       sb.from('mesocycles').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('nutrition_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
-      sb.from('split_adjustments').select('*').eq('client_id',client.id).order('effective_date')
+      sb.from('split_adjustments').select('*').eq('client_id',client.id).order('effective_date'),
+      sb.from('week_reorders').select('*').eq('client_id',client.id)
     ]);
 
     activePlan=planRes.data||null;
     activeMeso=mesoRes.data||null;
     splitAdjustments=(adjustmentsRes&&adjustmentsRes.data)||[];
     activeNutritionPlan=nutritionRes.data||null;
+    recomputeSessions(); // tipos de entreno desde el split (antes incluso de MESO2)
+
+    // Construir caché de reorganizaciones semanales desde Supabase
+    weekReorders={};
+    ((reordersRes&&reordersRes.data)||[]).forEach(r=>{
+      if(r&&r.week_key&&Array.isArray(r.plan))weekReorders[r.week_key]=r.plan;
+    });
+    // Migración suave: si la semana actual tiene un override viejo en localStorage
+    // y NO existe en Supabase, lo subimos una vez (no se pierde lo ya hecho).
+    await migrateLocalReordersToSupabase();
 
     // Cargar opciones de nutrición y asignación semanal
     if(activeNutritionPlan){
@@ -4675,7 +4758,9 @@ async function loadClientPlan(clientId){
 
   // Asignar globalmente
   Object.assign(MESO2, newMeso);
+  recomputeSessions(); // derivar los tipos de entreno reales del cliente
   console.log('MESO2 cargado desde Supabase:', Object.keys(MESO2).map(k=>k+':'+MESO2[k].length+' ejs').join(', '));
+  console.log('SESSIONS (tipos del plan):', SESSIONS.join(', '));
 }
 
 // ── REGISTRO SERVICE WORKER ──
