@@ -1301,6 +1301,8 @@ function renderHome(){
     '</div>'+
     // Botón "Reorganizar semana" SOLO para splits de ciclo (8+ días).
     // En splits semanales (7) los chips por día ya bastan para ajustar.
+    // [DEBUG TEMPORAL] mostrar longitud del split leído por MyTracc
+    '<div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,.5);text-align:center;">DEBUG · split len: '+(activePlan&&activePlan.split?activePlan.split.length:'sin split')+'</div>'+
     ((activePlan&&Array.isArray(activePlan.split)&&activePlan.split.length>=8)?
       '<button onclick="toggleWeekReorder()" style="margin-top:12px;width:100%;height:32px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">📅 '+(state.showWeekReorder?'Cerrar reorganización':'Reorganizar semana')+'</button>'+
       (state.showWeekReorder?renderWeekReorder(weekKey(),weekPlan):'')
