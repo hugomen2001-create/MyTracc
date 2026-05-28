@@ -254,33 +254,6 @@ input[type=number]{-moz-appearance:textfield}
 .divider{height:1px;background:var(--border);margin:14px 0}
 
 
-/* CHEATS V2 */
-.cheat-estimator{background:var(--bg2);border-radius:14px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;color:var(--text)}
-.cheat-estimate-result{background:var(--coral-light);border:1px solid rgba(155,44,44,0.2);border-radius:12px;padding:14px;margin-top:10px}
-.cheat-kcal-range{font-size:26px;font-weight:900;color:var(--coral);letter-spacing:-1px;line-height:1}
-.cheat-macros-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
-.cheat-macro-chip{font-size:11px;font-weight:700;color:var(--coral);background:rgba(155,44,44,0.08);padding:3px 9px;border-radius:6px}
-.cheat-confidence{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:6px;text-transform:uppercase;letter-spacing:0.4px}
-.conf-alta{background:#d4edd4;color:var(--green)}
-.conf-media{background:#fef3c7;color:var(--amber)}
-.conf-baja{background:var(--coral-light);color:var(--coral)}
-.week-block{background:var(--bg2);border-radius:14px;border:1px solid var(--border);margin-bottom:8px;overflow:hidden}
-.week-block-header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
-.week-block-title{font-size:13px;font-weight:700;color:var(--text)}
-.week-block-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px}
-.badge-ok{background:var(--green-dim);color:var(--green)}
-.badge-empty{background:var(--bg3);color:var(--text3)}
-.badge-excess{background:var(--amber-light);color:var(--amber)}
-.cheat-card{padding:10px 14px;border-top:1px solid var(--border);cursor:pointer}
-.cheat-card:active{opacity:0.8}
-.cheat-detail{padding:10px 14px 14px;border-top:1px solid var(--border);background:var(--bg3)}
-.cheat-empty-week{padding:10px 14px;border-top:1px solid var(--border);font-size:13px;color:var(--text3);font-style:italic}
-.section-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:block}
-.empty-state{display:flex;flex-direction:column;align-items:center;padding:48px 20px;gap:12px;text-align:center}
-.empty-icon{width:68px;height:68px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:30px}
-.empty-title{font-size:16px;font-weight:700;color:var(--text)}
-.empty-sub{font-size:13px;color:var(--text2);line-height:1.5}
-
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:13px 16px;border-radius:12px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:14px;cursor:pointer;font-family:var(--font);font-weight:600;transition:all 0.15s;-webkit-user-select:none}
 .btn:active{transform:scale(0.97);opacity:0.85}
@@ -1423,7 +1396,6 @@ function render(){
     else if(state.tab==='diet')c.innerHTML=renderDiet();
     else if(state.tab==='cheats')c.innerHTML=renderCheats();
   }
-  setTimeout(initDragList,0);
 }
 
 function renderHome(){
@@ -1594,7 +1566,13 @@ function renderTrain(){
     '<div style="font-size:13px;font-weight:700;color:#16a34a;margin-left:12px">'+savedSeries+'/'+totalSeries+'</div>'+
   '</div>';
 
-  const sessionBanner=dd.sessionSaved?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px;font-weight:600;color:#16a34a">✅ Sesión completada y guardada</div>':'';
+  const sessionBanner=dd.sessionSaved?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">'+
+    '<div style="flex:1;font-size:13px;font-weight:600;color:#16a34a;">✅ Sesión completada y guardada</div>'+
+    '<button onclick="openDeleteSessionConfirm('+di+')" title="Borrar esta sesión" style="background:transparent;border:none;padding:4px;cursor:pointer;color:#16a34a;opacity:.55;display:flex;align-items:center;font-family:\'DM Sans\',sans-serif;font-size:11px;font-weight:600;gap:4px;" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'.55\'">'+
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>'+
+      'Borrar'+
+    '</button>'+
+  '</div>':'';
 
   // Build global lookup so onclick can find exercise names by order number
   window.exNames={};window.exSessions={};
@@ -2523,92 +2501,6 @@ function renderCheatForm(){
     '</div>'+
   '</div>';
 }
-function toggleWeekReorder(){state.showWeekReorder=!state.showWeekReorder;render();}
-function renderWeekReorder(wk,weekPlan){
-  return '<div id="week-reorder-panel" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);border-radius:12px;padding:14px;margin-top:10px">'+
-    '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Arrastra para reorganizar</div>'+
-    '<div id="drag-list">'+
-      weekPlan.map((plan,i)=>
-        '<div class="drag-item" data-idx="'+i+'" draggable="true" style="display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:5px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none">'+
-          '<span style="font-size:16px;color:rgba(255,255,255,.4);line-height:1">⠿</span>'+
-          '<span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);min-width:24px">'+SHORT[i]+'</span>'+
-          '<span style="font-size:13px;font-weight:600;color:#fff;flex:1">'+DAYS[i]+'</span>'+
-          '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;background:'+(SESSIONS.includes(plan)?'rgba(255,255,255,.25)':'rgba(255,255,255,.1)')+';color:'+(SESSIONS.includes(plan)?'#fff':'rgba(255,255,255,.5)')+'">'+plan+'</span>'+
-        '</div>'
-      ).join('')+
-    '</div>'+
-    '<button onclick="toggleWeekReorder()" style="width:100%;margin-top:10px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:9px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">✓ Cerrar</button>'+
-  '</div>';
-}
-function setWeekDayPlan(di,val,wk){
-  const current=getWeekPlan(wk);
-  current[di]=val;
-  saveWeekReorder(wk,current); // → Supabase (+ caché + limpia localStorage)
-  showToast('Plan actualizado ✓','green');
-  render();
-}
-function initDragList(){
-  const list=document.getElementById('drag-list');
-  if(!list)return;
-  let dragEl=null,dragIdx=null;
-  const items=()=>[...list.querySelectorAll('.drag-item')];
-  const getIdx=el=>parseInt(el.dataset.idx);
-
-  // Touch support
-  list.addEventListener('touchstart',e=>{
-    const el=e.target.closest('.drag-item');if(!el)return;
-    dragEl=el;dragIdx=getIdx(el);
-    el.style.opacity='0.5';el.style.boxShadow='0 6px 20px rgba(0,0,0,0.15)';
-  },{passive:true});
-  list.addEventListener('touchmove',e=>{
-    if(!dragEl)return;
-    e.preventDefault();
-    const touch=e.touches[0];
-    const target=document.elementFromPoint(touch.clientX,touch.clientY)?.closest('.drag-item');
-    if(target&&target!==dragEl){
-      const tIdx=getIdx(target);
-      const els=items();
-      if(tIdx>dragIdx)list.insertBefore(dragEl,target.nextSibling);
-      else list.insertBefore(dragEl,target);
-      dragIdx=tIdx;
-    }
-  },{passive:false});
-  list.addEventListener('touchend',()=>{
-    if(!dragEl)return;
-    dragEl.style.opacity='1';dragEl.style.boxShadow='';
-    saveDragOrder();dragEl=null;dragIdx=null;
-  });
-
-  // Mouse support
-  list.addEventListener('dragstart',e=>{
-    const el=e.target.closest('.drag-item');if(!el)return;
-    dragEl=el;setTimeout(()=>el.style.opacity='0.5',0);
-  });
-  list.addEventListener('dragover',e=>{
-    e.preventDefault();
-    const target=e.target.closest('.drag-item');
-    if(target&&target!==dragEl){
-      const box=target.getBoundingClientRect();
-      if(e.clientY<box.top+box.height/2)list.insertBefore(dragEl,target);
-      else list.insertBefore(dragEl,target.nextSibling);
-    }
-  });
-  list.addEventListener('dragend',()=>{
-    if(dragEl)dragEl.style.opacity='1';
-    saveDragOrder();dragEl=null;
-  });
-
-  function saveDragOrder(){
-    const wk=weekKey();
-    const els=items();
-    const oldPlan=getWeekPlan(wk);
-    const newPlan=els.map(el=>oldPlan[getIdx(el)]);
-    saveWeekReorder(wk,newPlan); // → Supabase (+ caché + limpia localStorage)
-    els.forEach((el,i)=>el.dataset.idx=i);
-    showToast('Semana reorganizada ✓','green');
-    render();
-  }
-}
 function selectHomeDay(i){
   state.selectedDay=i;
   state.showWeekReorder=false;
@@ -2992,6 +2884,82 @@ async function _doFinish(current,di,savedSeries,totalSeries,totalEx,dd,exs,pct){
   document.getElementById('fin-evol-btn').addEventListener('click',()=>{overlay.remove();render();openEvolucion(current);});
 
   showToast('Sesión guardada','green','Datos sincronizados con Pol');
+  render();
+}
+
+// ── BORRAR SESIÓN COMPLETADA ──
+function openDeleteSessionConfirm(di){
+  const wk=weekKey();
+  const dd=getDayData(wk,di);
+  if(!dd||!dd.sessionSaved){
+    showToast('No hay sesión que borrar','warn');
+    return;
+  }
+  const date=getDayDate(di);
+  const sess=sessionsCache[date];
+  const tipoSesion=(sess&&sess.session_type)||dd.sessionName||'esta sesión';
+  const nSeries=sess&&sess.workout_sets?sess.workout_sets.length:0;
+
+  const conf=document.createElement('div');
+  conf.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:20px;padding:24px 22px;width:100%;max-width:340px;font-family:\'DM Sans\',sans-serif;';
+  box.innerHTML=
+    '<div style="display:flex;align-items:center;gap:11px;margin-bottom:14px;">'+
+      '<div style="width:40px;height:40px;border-radius:12px;background:#fef2f2;border:1.5px solid #fecaca;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>'+
+      '</div>'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111;letter-spacing:-.3px;line-height:1.15;">Borrar sesión</div>'+
+    '</div>'+
+    '<div style="font-size:13px;color:#666;line-height:1.55;margin-bottom:6px;">¿Seguro que quieres borrar la sesión <strong style="color:#111;">'+tipoSesion+'</strong> del '+DAYS[di]+'?</div>'+
+    (nSeries>0?'<div style="font-size:12px;color:#dc2626;line-height:1.5;margin-bottom:16px;">Se perderán <strong>'+nSeries+' serie'+(nSeries===1?'':'s')+'</strong> registrada'+(nSeries===1?'':'s')+'. Esta acción no se puede deshacer.</div>':
+      '<div style="font-size:12px;color:#999;line-height:1.5;margin-bottom:16px;">Esta acción no se puede deshacer.</div>')+
+    '<div style="display:flex;gap:8px;">'+
+      '<button id="ds-cancel" style="flex:1;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;border-radius:12px;padding:13px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Cancelar</button>'+
+      '<button id="ds-confirm" style="flex:1;background:#dc2626;border:none;color:#fff;border-radius:12px;padding:13px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Borrar</button>'+
+    '</div>';
+  conf.appendChild(box);
+  document.body.appendChild(conf);
+  conf.onclick=(e)=>{if(e.target===conf)conf.remove();};
+  document.getElementById('ds-cancel').onclick=()=>conf.remove();
+  document.getElementById('ds-confirm').onclick=async()=>{
+    const btn=document.getElementById('ds-confirm');
+    btn.disabled=true;btn.style.opacity='.6';btn.textContent='Borrando...';
+    await doDeleteSession(di);
+    conf.remove();
+  };
+}
+
+async function doDeleteSession(di){
+  if(!clientData)return;
+  const wk=weekKey();
+  const dd=getDayData(wk,di);
+  const date=getDayDate(di);
+  const sess=sessionsCache[date];
+
+  if(sess&&sess.id){
+    // 1) borrar workout_sets de esa sesión
+    const {error:setsErr}=await sb.from('workout_sets').delete().eq('session_id',sess.id);
+    if(setsErr){console.error('workout_sets delete error:',setsErr);showToast('No se pudo borrar','err');return;}
+    // 2) borrar workout_session
+    const {error:sessErr}=await sb.from('workout_sessions').delete().eq('id',sess.id);
+    if(sessErr){console.error('workout_sessions delete error:',sessErr);showToast('No se pudo borrar','err');return;}
+    // 3) limpiar caché
+    delete sessionsCache[date];
+  }
+
+  // 4) limpiar estado local del día
+  if(dd){
+    dd.sets={};
+    dd.savedSets={};
+    dd.sessionSaved=false;
+    dd.sessionName='';
+  }
+  // 5) resetear estado UI si era hoy
+  state.pendingSets={};
+  state.openEx=undefined;
+
+  showToast('Sesión borrada ✓','ok');
   render();
 }
 
