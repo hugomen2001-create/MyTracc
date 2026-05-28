@@ -1476,7 +1476,8 @@ function renderHome(){
   const now=new Date();
   const wd=gymData[wk]||{};
   const pasos=parseInt(dd.pasos)||0;
-  const pasosW=Math.min(100,pasos/12000*100);
+  const pasosGoal=(clientData&&clientData.steps_goal)||8000;
+  const pasosW=Math.min(100,pasos/pasosGoal*100);
   const sueno=parseFloat(dd.sueno)||0;
   const suenoW=Math.min(100,sueno/8*100);
   const nombre=(clientData?.name||'').split(' ')[0]||'Hugo';
