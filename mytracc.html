@@ -728,6 +728,8 @@ const DEFAULT_PLAN=['DESCANSO','TORSO','DESCANSO','LEG','PUSH','PULL','DESCANSO'
 // SESSIONS = tipos de entreno reales del cliente (de su plan), NO una lista fija.
 // Se recalcula con recomputeSessions() tras cargar el plan desde Supabase.
 let SESSIONS=['LEG','PULL','PUSH','TORSO']; // fallback inicial hasta cargar plan
+// MESO2 se carga dinámicamente desde Supabase (client_plans + exercises) en loadClientPlan().
+let MESO2={};
 const DAY_KEYS=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
 // Tokens que representan DESCANSO (en split de Supabase puede venir 'OFF';
@@ -745,7 +747,8 @@ function recomputeSessions(){
   // 1) orden según el split del plan
   if(activePlan&&Array.isArray(activePlan.split))activePlan.split.forEach(add);
   // 2) tipos con ejercicios en MESO2 que no estuvieran ya
-  if(MESO2&&typeof MESO2==='object')Object.keys(MESO2).forEach(add);
+  //    (typeof evita ReferenceError si MESO2 aún no se ha declarado/cargado)
+  if(typeof MESO2!=='undefined'&&MESO2&&typeof MESO2==='object')Object.keys(MESO2).forEach(add);
   // 3) si no hay nada (cliente sin plan), mantener el fallback
   SESSIONS = out.length ? out : ['LEG','PULL','PUSH','TORSO'];
   return SESSIONS;
