@@ -1130,6 +1130,23 @@ function offsetVigenteHoy(){
   catch(e){ return 0; }
 }
 
+/* ¿Hay algún retraso activo que se pueda deshacer? Mira si existe algún ajuste
+   con pausa cuyo efecto sea hoy o futuro (effective_date >= hoy, o pausa en
+   curso). Independiente de offsetVigenteHoy (que es 0 durante el parón). */
+function hayRetrasoActivo(){
+  if(!Array.isArray(splitAdjustments))return false;
+  const hoyN=Cycle._diffDays(hoyLocalStr(),'1970-01-01'); // número de día de hoy
+  for(let i=0;i<splitAdjustments.length;i++){
+    const a=splitAdjustments[i];
+    if(!a||!a.pause_from||!a.effective_date)continue; // solo cuentan los de retraso real
+    // activo si la reanudación es hoy o futura, o si hoy cae dentro de la pausa
+    const edN=Cycle._diffDays(a.effective_date,'1970-01-01');
+    if(edN>=hoyN)return true;
+    if(Cycle.isInPause(hoyLocalStr(),[a]))return true;
+  }
+  return false;
+}
+
 /* Estado del editor de retraso.
    paso: 'cerrado' | 'parar' (elige día que dejó) | 'reanudar' (elige día que retoma)
    pararStr: día elegido para parar (YYYY-MM-DD). */
@@ -1255,6 +1272,16 @@ function renderRetrasarSplit(){
       '</div>';
   }
   const off=offsetVigenteHoy();
+  const hayRetraso=hayRetrasoActivo();
+  // Para la etiqueta: si hay retraso pero hoy aún no aplica (en pausa), mostrar
+  // el offset del último ajuste de retraso registrado.
+  let offMostrar=off;
+  if(hayRetraso&&off<=0){
+    for(let i=splitAdjustments.length-1;i>=0;i--){
+      const a=splitAdjustments[i];
+      if(a&&a.pause_from&&a.effective_date){offMostrar=a.offset_days||0;break;}
+    }
+  }
 
   // Iconos SVG (no emojis)
   const icoCal='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -1262,8 +1289,8 @@ function renderRetrasarSplit(){
 
   // COLAPSADO: botón "Retrasar split" + (si hay retraso) botón deshacer al lado.
   if(retrasoEditor.paso==='cerrado'){
-    const btnRetrasar='<button onclick="abrirRetraso()" style="flex:1;height:34px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">'+icoCal+'<span>'+(off>0?('Retrasado '+off+' día'+(off===1?'':'s')):'Retrasar split')+'</span></button>';
-    const btnDeshacer = off>0
+    const btnRetrasar='<button onclick="abrirRetraso()" style="flex:1;height:34px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">'+icoCal+'<span>'+(hayRetraso?('Retrasado '+offMostrar+' día'+(offMostrar===1?'':'s')):'Retrasar split')+'</span></button>';
+    const btnDeshacer = hayRetraso
       ? '<button onclick="deshacerUltimoRetraso()" title="Deshacer último retraso" style="width:34px;height:34px;flex-shrink:0;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;">'+icoUndo+'</button>'
       : '';
     return '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;">'+btnRetrasar+btnDeshacer+'</div>';
@@ -1276,7 +1303,7 @@ function renderRetrasarSplit(){
     html+='<div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:2px;">Retrasar el split</div>'+
       '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;margin:8px 0;">Paso 1 · ¿Desde qué día paras?</div>'+
       '<div style="max-height:200px;overflow-y:auto;">'+listaDiasRetraso('elegirDiaParar',null)+'</div>';
-    if(off>0){
+    if(hayRetraso){
       html+='<button onclick="quitarRetraso()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:700;cursor:pointer;">↺ Poner el split al día</button>';
     }
     html+='<button onclick="cancelarRetraso()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Cancelar</button>';
