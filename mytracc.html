@@ -253,42 +253,6 @@ input[type=number]{-moz-appearance:textfield}
 .session-complete-banner{background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:12px 16px;margin-bottom:10px;font-size:13px;color:#16a34a;font-weight:600}
 .divider{height:1px;background:var(--border);margin:14px 0}
 
-/* DIET food blocks — original style */
-.food-block{padding:12px 0;border-bottom:1px solid var(--border)}
-.food-block:last-child{border-bottom:none}
-.food-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.food-icon{width:34px;height:34px;border-radius:9px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(26,77,26,0.12);font-size:18px}
-.food-name{font-size:14px;font-weight:700;color:var(--text)}
-.food-content{font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-line;padding-left:44px}
-
-/* DIET V2 */
-.macro-card{background:linear-gradient(135deg,#0d1a0d 0%,#111 60%,#0a120a 100%);border:1px solid rgba(74,222,128,0.2);border-radius:16px;padding:16px 18px;margin-bottom:10px;position:relative;overflow:hidden}
-.macro-card-glow{position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none}
-.macro-kcal{font-size:36px;font-weight:900;color:#fff;letter-spacing:-2px;line-height:1;margin:6px 0 4px}
-.macro-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.6px}
-.macro-row{display:flex;gap:10px;margin-top:6px}
-.macro-chip{background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--green)}
-.macro-chip span{font-size:9px;opacity:0.7;font-weight:500;margin-left:2px}
-.meal-card{background:var(--bg2);border-radius:14px;border:1px solid var(--border);margin-bottom:8px;overflow:hidden}
-.meal-header{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;-webkit-user-select:none;user-select:none}
-.meal-header:active{opacity:0.8}
-.meal-icon{width:34px;height:34px;border-radius:9px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(26,77,26,0.12);font-size:18px}
-.meal-info{flex:1;min-width:0}
-.meal-name{font-size:13px;font-weight:700;color:var(--text)}
-.meal-preview{font-size:11px;color:var(--text3);font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.meal-chevron{font-size:11px;color:var(--text3);flex-shrink:0;transition:transform 0.2s;font-family:var(--mono)}
-.meal-chevron.open{transform:rotate(180deg)}
-.meal-body{padding:0 14px 14px;border-top:1px solid var(--border)}
-.meal-items{padding-top:10px}
-.meal-item{font-size:13px;color:var(--text2);font-weight:500;padding:4px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
-.meal-item:last-child{border-bottom:none}
-.meal-item::before{content:'·';color:var(--text3)}
-.calc-card{background:var(--bg2);border-radius:14px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px}
-.calc-result{background:var(--green-light);border:1px solid rgba(26,77,26,0.18);border-radius:10px;padding:12px 14px;margin-top:10px;display:none}
-.calc-result.visible{display:block}
-.calc-result-val{font-size:22px;font-weight:900;color:var(--green);letter-spacing:-1px}
-.calc-result-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
-.calc-chip{font-size:11px;font-weight:700;color:var(--green);background:rgba(26,77,26,0.08);padding:3px 9px;border-radius:6px}
 
 /* CHEATS V2 */
 .cheat-estimator{background:var(--bg2);border-radius:14px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;color:var(--text)}
@@ -754,15 +718,6 @@ function recomputeSessions(){
   return SESSIONS;
 }
 
-const DIET={
-  Lunes:{desayuno:'100g Pan\n3 huevos\n100ml Clara de huevo',comida:'250g Pavo/Pollo\n40g Pasta\n150g Cebolla\nManzana',merienda:'25g Caseína\nManzana',cena:'200g Contramuslo Pollo\n200g Boniato\n150g Cebolla'},
-  Martes:{desayuno:'80g Pan\n70g Jamón',comida:'150g Pavo/Pollo\n40g Arroz\n150g Cebolla\nManzana',merienda:'30g Caseína\nManzana',cena:'150g Ternera\n200g Boniato\n150g Cebolla'},
-  Miércoles:{desayuno:'70g Pan (Tostadas)\n70g Cecina\n5ml aceite',comida:'80g Pasta\n250g Contramuslo Pollo/Pavo\n150g Cebolla\nManzana',merienda:'40g Pan\n100g Pavo embutido\n10ml aceite\nManzana',cena:'80g Lomo embuchado\n45g Tortitas\n150g Cebolla\nManzana'},
-  Jueves:{desayuno:'80g Pan de barra\n90g Lomo embuchado\n5ml aceite',comida:'170g Pavo/Pollo\n80g Arroz\n150g Cebolla\n5ml aceite\nManzana',merienda:'40g Tortitas\n100g Embutido Pavo/Pollo\n10ml aceite\nManzana',cena:'150g Contramuslo Pollo/Pavo\n200g Boniato\n150g Cebolla\n5ml aceite'},
-  Viernes:{desayuno:'80g Pan\n70g Jamón',comida:'150g Pavo/Pollo\n40g Arroz\n150g Cebolla\nManzana',merienda:'30g Caseína\nManzana',cena:'150g Ternera\n200g Boniato\n150g Cebolla'},
-  Sábado:{desayuno:'100g Pan\n3 huevos\n100ml Clara de huevo',comida:'250g Pavo/Pollo\n40g Pasta\n150g Cebolla\nManzana',merienda:'25g Caseína\nManzana',cena:'200g Contramuslo Pollo\n200g Boniato\n150g Cebolla'},
-  Domingo:{desayuno:'80g Pan (Tostada)\n70g Cecina\n5ml aceite',comida:'200g Guisantes\n40g Arroz\n170g Contramuslo Pollo/Pavo\n150g Cebolla\nManzana',merienda:'60g Pan\n100g Pavo embutido\n10ml aceite\nManzana',cena:'130g Pollo/Pavo\n200g Boniato\n150g Cebolla\nManzana'}
-};
 
 const DAILY_MACROS={kcal:1960,carbs:245,fat:40,protein:155};
 let openMeals={};
@@ -1979,120 +1934,6 @@ async function selectDayOption(optNum){
   render();
 }
 
-function renderDietHardcoded(sel, dayName, isToday){
-  const diet=DIET[dayName];
-  if(!diet) return '<div style="padding:80px 20px;text-align:center;color:#bbb">Sin datos para este día</div>';
-
-  const mealColors={
-    desayuno:{bg:'#fffbeb',border:'rgba(234,179,8,.2)',emoji:'☕'},
-    comida:   {bg:'#f0fdf4',border:'rgba(22,163,74,.18)',emoji:'🍗'},
-    merienda: {bg:'#fff7f0',border:'rgba(251,146,60,.18)',emoji:'🍎'},
-    cena:     {bg:'#f3f0ff',border:'rgba(124,58,237,.15)',emoji:'🌙'},
-  };
-  const labels={desayuno:'Desayuno',comida:'Comida',merienda:'Merienda',cena:'Cena'};
-
-  function getDayKcal(dayN){
-    const dk=DIET_KCAL[dayN];if(!dk)return 0;
-    let t=0;Object.values(dk).forEach(m=>(m.items||[]).forEach(i=>t+=i.kcal));
-    return Math.round(t);
-  }
-
-  const dayKcalData=DIET_KCAL[dayName];
-  let dayTotalKcal=0,dayTotalCH=0,dayTotalG=0,dayTotalP=0;
-  if(dayKcalData){
-    Object.values(dayKcalData).forEach(meal=>{
-      (meal.items||[]).forEach(i=>{dayTotalKcal+=i.kcal;dayTotalCH+=i.ch;dayTotalG+=i.g;dayTotalP+=i.p;});
-    });
-  }
-  dayTotalKcal=Math.round(dayTotalKcal);dayTotalCH=Math.round(dayTotalCH);dayTotalG=Math.round(dayTotalG);dayTotalP=Math.round(dayTotalP);
-
-  const SHORT2=['L','M','X','J','V','S','D'];
-  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const d2=new Date();d2.setDate(d2.getDate()+(sel-todayIdx()));
-  const dateLabel=isToday?'Hoy, '+d2.getDate()+' de '+meses[d2.getMonth()]:'Viendo '+dayName.toLowerCase()+' · toca hoy para volver';
-
-  const header='<div style="padding:68px 20px 16px;">'+
-    '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:4px;">'+dateLabel+'</div>'+
-    '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1;">'+(isToday?'Tu plan de <em style="color:#16a34a;">hoy.</em>':dayName+'.')+'</div>'+
-  '</div>';
-
-  const macroCard='<div style="margin:0 16px 12px;background:#fff;border:1.5px solid rgba(22,163,74,.22);border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
-    '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(22,163,74,.6);margin-bottom:8px;">Plan del día</div>'+
-    '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
-      '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+(dayTotalKcal||DAILY_MACROS.kcal).toLocaleString('es-ES')+'</div>'+
-      '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">kcal</div>'+
-    '</div>'+
-    '<div style="display:flex;gap:7px;">'+
-      [['CH',dayTotalCH||DAILY_MACROS.carbs],['G',dayTotalG||DAILY_MACROS.fat],['P',dayTotalP||DAILY_MACROS.protein]].map(([m,v])=>
-        '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
-          '<div style="font-size:15px;font-weight:700;color:#111;">'+v+'g</div>'+
-          '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(22,163,74,.6);margin-top:2px;">'+m+'</div>'+
-        '</div>'
-      ).join('')+
-    '</div>'+
-    '<div style="margin-top:10px;font-size:11px;color:#bbb;font-weight:500;">💧 3 litros de agua · Café sin azúcar</div>'+
-  '</div>';
-
-  const daySelector='<div style="padding:0 16px;margin-bottom:14px;display:flex;gap:5px;">'+
-    SHORT2.map((d,i)=>{
-      const isSel=i===sel;
-      const kcal=getDayKcal(DAYS[i]);
-      return '<div onclick="selectDietDay('+i+')" style="flex:1;background:'+(isSel?'#111':'#fff')+';border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border:1.5px solid '+(isSel?'#111':'#eaeae6')+';cursor:pointer;transition:all .15s;">'+
-        '<div style="font-size:10px;font-weight:700;color:'+(isSel?'#fff':'#bbb')+';text-transform:uppercase;letter-spacing:.04em;">'+d+'</div>'+
-        '<div style="font-size:7px;font-weight:700;color:'+(isSel?'rgba(255,255,255,.5)':'#ddd')+';text-transform:uppercase;">'+(kcal||'—')+'</div>'+
-      '</div>';
-    }).join('')+
-  '</div>';
-
-  const mealCards=['desayuno','comida','merienda','cena'].map(c=>{
-    const mc=mealColors[c];
-    const items=diet[c].split('\n').filter(Boolean);
-    const kcalData=DIET_KCAL[dayName]&&DIET_KCAL[dayName][c];
-    const mealKcal=kcalData?(kcalData.items?kcalData.items.reduce((a,i)=>a+i.kcal,0):kcalData.total):0;
-    const mealCH=kcalData&&kcalData.items?kcalData.items.reduce((a,i)=>a+i.ch,0):0;
-    const mealG=kcalData&&kcalData.items?kcalData.items.reduce((a,i)=>a+i.g,0):0;
-    const mealP=kcalData&&kcalData.items?kcalData.items.reduce((a,i)=>a+i.p,0):0;
-    const isOpen=openMeals[c];
-    const preview=items.slice(0,3).map(it=>it.split(' ').slice(1).join(' ')||it).join(' · ');
-
-    return '<div style="background:#fff;border-radius:18px;border:1.5px solid '+(isOpen?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isOpen?'0 2px 12px rgba(0,0,0,.1)':'0 1px 3px rgba(0,0,0,.04)')+';"> '+
-      '<div onclick="toggleDietMeal(\''+c+'\')" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;'+(isOpen?'border-bottom:1px solid #f0f0ee;':'')+'">'+
-        '<div style="width:38px;height:38px;border-radius:12px;background:'+mc.bg+';border:1.5px solid '+mc.border+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;">'+mc.emoji+'</div>'+
-        '<div style="flex:1;min-width:0;">'+
-          '<div style="font-size:13.5px;font-weight:700;color:#111;margin-bottom:2px;">'+labels[c]+'</div>'+
-          '<div style="font-size:12px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(isOpen?items.length+' alimentos':preview)+'</div>'+
-        '</div>'+
-        (mealKcal?'<div style="text-align:right;flex-shrink:0;"><div style="font-size:13px;font-weight:700;color:#111;">'+Math.round(mealKcal)+'</div><div style="font-size:9px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.04em;">kcal</div></div>':'')+
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="'+(isOpen?'#111':'#ccc')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform .2s;transform:'+(isOpen?'rotate(180deg)':'rotate(0deg)')+'"><polyline points="6 9 12 15 18 9"/></svg>'+
-      '</div>'+
-      (isOpen?
-        '<div style="padding:14px 16px;">'+
-          '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">'+
-            items.map((item,idx)=>{
-              const ki=kcalData&&kcalData.items&&kcalData.items[idx];
-              return '<div>'+
-                '<div style="display:flex;align-items:center;justify-content:space-between;">'+
-                  '<div style="font-size:13px;font-weight:600;color:#111;">'+item+'</div>'+
-                  (ki?'<div style="font-size:13px;font-weight:700;color:#111;flex-shrink:0;margin-left:8px;">'+Math.round(ki.kcal)+' kcal</div>':'')+
-                '</div>'+
-                (ki?'<div style="display:flex;gap:6px;margin-top:3px;"><span style="font-size:10px;color:#bbb;font-weight:600;">'+Math.round(ki.ch)+'g CH</span><span style="font-size:10px;color:#bbb;">·</span><span style="font-size:10px;color:#bbb;font-weight:600;">'+Math.round(ki.g)+'g G</span><span style="font-size:10px;color:#bbb;">·</span><span style="font-size:10px;color:#bbb;font-weight:600;">'+Math.round(ki.p)+'g P</span></div>':'')+
-              '</div>'+(idx<items.length-1?'<div style="height:1px;background:#f0f0ee;margin-top:10px;"></div>':'');
-            }).join('')+
-          '</div>'+
-          (mealKcal?'<div style="background:#f5f5f3;border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;gap:10px;"><span style="font-size:11px;font-weight:700;color:#888;">'+Math.round(mealCH)+'g CH</span><span style="font-size:11px;font-weight:700;color:#888;">'+Math.round(mealG)+'g G</span><span style="font-size:11px;font-weight:700;color:#888;">'+Math.round(mealP)+'g P</span></div><div style="font-size:14px;font-weight:800;color:#111;">'+Math.round(mealKcal)+' kcal</div></div>':'')+
-        '</div>':'')+
-    '</div>';
-  }).join('');
-
-
-
-  return '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#f5f5f3">'+
-    '<div style="flex:1;overflow-y:auto;padding-bottom:80px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
-      header+macroCard+daySelector+
-      '<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;">'+mealCards+'</div>'+
-    '</div>'+
-  '</div>';
-}
 
 function renderCheats(){
   const cheats=gymData.cheats||[];
@@ -2811,115 +2652,7 @@ function toggleCheatForm(){
 
 function selectTrainDay(i){state.selectedDay=i;state.pendingSets={};state.trainSession=null;state.openEx=undefined;render();}
 // kcal per meal per day (estimated from diet plan)
-const DIET_KCAL={
-  Lunes:{
-    desayuno:{items:[{n:'100g Pan',kcal:265,ch:49.0,g:3.2,p:9.0},{n:'3 huevos',kcal:279,ch:2.0,g:19.8,p:23.4},{n:'100ml Clara de huevo',kcal:52,ch:0.7,g:0.2,p:11.0}]},
-    comida:{items:[{n:'250g Pavo o Pollo',kcal:338,ch:0.0,g:7.5,p:60.0},{n:'40g Pasta',kcal:140,ch:28.0,g:0.6,p:5.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'25g Caseína',kcal:92,ch:0.8,g:0.5,p:20.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'200g Contramuslo de Pollo',kcal:350,ch:0.0,g:16.0,p:50.0},{n:'200g Boniato',kcal:180,ch:42.0,g:0.2,p:3.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7}]},
-  },
-  Martes:{
-    desayuno:{items:[{n:'80g Pan',kcal:212,ch:39.2,g:2.6,p:7.2},{n:'70g Jamón',kcal:169,ch:0.3,g:9.8,p:18.9}]},
-    comida:{items:[{n:'150g Pavo o Pollo',kcal:202,ch:0.0,g:4.5,p:36.0},{n:'40g Arroz',kcal:142,ch:31.6,g:0.3,p:2.8},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'30g Caseína',kcal:111,ch:0.9,g:0.6,p:24.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'150g Ternera',kcal:240,ch:0.0,g:10.5,p:34.5},{n:'200g Boniato',kcal:180,ch:42.0,g:0.2,p:3.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7}]},
-  },
-  Miércoles:{
-    desayuno:{items:[{n:'70g Pan (Tostadas)',kcal:186,ch:34.3,g:2.2,p:6.3},{n:'70g Cecina',kcal:126,ch:0.0,g:3.5,p:22.4},{n:'5ml Aceite',kcal:44,ch:0.0,g:5.0,p:0.0}]},
-    comida:{items:[{n:'80g Pasta',kcal:280,ch:56.0,g:1.2,p:10.4},{n:'250g Contramuslo Pollo o Pavo',kcal:438,ch:0.0,g:20.0,p:62.5},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'40g Pan (Tostadas)',kcal:106,ch:19.6,g:1.3,p:3.6},{n:'100g Pavo embutido',kcal:120,ch:2.0,g:3.0,p:22.0},{n:'10ml Aceite',kcal:88,ch:0.0,g:10.0,p:0.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'80g Lomo embuchado',kcal:240,ch:0.0,g:13.6,p:28.8},{n:'45g Tortitas',kcal:171,ch:37.8,g:1.1,p:3.1},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-  },
-  Jueves:{
-    desayuno:{items:[{n:'80g Pan de barra',kcal:212,ch:39.2,g:2.6,p:7.2},{n:'90g Lomo embuchado',kcal:270,ch:0.0,g:15.3,p:32.4},{n:'5ml Aceite',kcal:44,ch:0.0,g:5.0,p:0.0}]},
-    comida:{items:[{n:'170g Pavo o Pollo',kcal:230,ch:0.0,g:5.1,p:40.8},{n:'80g Arroz',kcal:285,ch:63.2,g:0.6,p:5.6},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'40g Tortitas',kcal:152,ch:33.6,g:1.0,p:2.8},{n:'100g Embutido Pavo o Pollo',kcal:120,ch:2.0,g:3.0,p:22.0},{n:'10ml Aceite',kcal:88,ch:0.0,g:10.0,p:0.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'150g Contramuslo Pollo o Pavo',kcal:262,ch:0.0,g:12.0,p:37.5},{n:'200g Boniato',kcal:180,ch:42.0,g:0.2,p:3.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'5ml Aceite',kcal:44,ch:0.0,g:5.0,p:0.0}]},
-  },
-  Viernes:{
-    desayuno:{items:[{n:'80g Pan',kcal:212,ch:39.2,g:2.6,p:7.2},{n:'70g Jamón',kcal:169,ch:0.3,g:9.8,p:18.9}]},
-    comida:{items:[{n:'150g Pavo o Pollo',kcal:202,ch:0.0,g:4.5,p:36.0},{n:'40g Arroz',kcal:142,ch:31.6,g:0.3,p:2.8},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'30g Caseína',kcal:111,ch:0.9,g:0.6,p:24.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'150g Ternera',kcal:240,ch:0.0,g:10.5,p:34.5},{n:'200g Boniato',kcal:180,ch:42.0,g:0.2,p:3.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7}]},
-  },
-  Sábado:{
-    desayuno:{items:[{n:'100g Pan',kcal:265,ch:49.0,g:3.2,p:9.0},{n:'3 huevos',kcal:279,ch:2.0,g:19.8,p:23.4},{n:'100ml Clara de huevo',kcal:52,ch:0.7,g:0.2,p:11.0}]},
-    comida:{items:[{n:'250g Pavo o Pollo',kcal:338,ch:0.0,g:7.5,p:60.0},{n:'40g Pasta',kcal:140,ch:28.0,g:0.6,p:5.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'25g Caseína',kcal:92,ch:0.8,g:0.5,p:20.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'200g Contramuslo de Pollo',kcal:350,ch:0.0,g:16.0,p:50.0},{n:'200g Boniato',kcal:180,ch:42.0,g:0.2,p:3.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7}]},
-  },
-  Domingo:{
-    desayuno:{items:[{n:'80g Pan (Tostada)',kcal:212,ch:39.2,g:2.6,p:7.2},{n:'70g Cecina',kcal:126,ch:0.0,g:3.5,p:22.4},{n:'5ml Aceite',kcal:44,ch:0.0,g:5.0,p:0.0}]},
-    comida:{items:[{n:'200g Guisantes',kcal:160,ch:28.0,g:0.8,p:10.8},{n:'40g Arroz',kcal:142,ch:31.6,g:0.3,p:2.8},{n:'170g Contramuslo Pollo o Pavo',kcal:298,ch:0.0,g:13.6,p:42.5},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    merienda:{items:[{n:'60g Pan (Tostadas)',kcal:159,ch:29.4,g:1.9,p:5.4},{n:'100g Pavo embutido',kcal:120,ch:2.0,g:3.0,p:22.0},{n:'10ml Aceite',kcal:88,ch:0.0,g:10.0,p:0.0},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-    cena:{items:[{n:'130g Pollo o Pavo',kcal:176,ch:0.0,g:3.9,p:31.2},{n:'200g Boniato',kcal:180,ch:42.0,g:0.2,p:3.2},{n:'150g Cebolla',kcal:60,ch:13.5,g:0.2,p:1.7},{n:'Manzana',kcal:83,ch:22.0,g:0.3,p:0.5}]},
-  },
-};
 
-function openMealKcal(dayName,comida){
-  const data=DIET_KCAL[dayName]&&DIET_KCAL[dayName][comida];
-  const labels={desayuno:'Desayuno',comida:'Comida',merienda:'Merienda',cena:'Cena'};
-  const emojis={desayuno:'☕',comida:'🍝',merienda:'🍎',cena:'🌙'};
-  if(!data)return;
-
-  const overlayEl=document.createElement('div');
-  overlayEl.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:700;display:flex;align-items:flex-end;justify-content:center';
-  overlayEl.onclick=e=>{if(e.target===overlayEl)closeSheet();};
-
-  const sheetEl=document.createElement('div');
-  sheetEl.style.cssText='background:var(--bg2);border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:75vh;overflow-y:auto;-webkit-overflow-scrolling:touch;will-change:transform';
-  sheetEl.onclick=e=>e.stopPropagation();
-
-  function closeSheet(){
-    sheetEl.style.transition='transform 0.28s cubic-bezier(0.25,1,0.5,1)';
-    sheetEl.style.transform='translateY(110%)';
-    setTimeout(()=>overlayEl.remove(),280);
-  }
-
-  const itemsHtml=data.items.map(item=>{
-    return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+
-        '<span style="font-size:13px;color:var(--text);font-weight:600">'+item.n+'</span>'+
-        '<span style="font-size:13px;color:var(--green);font-weight:700;font-family:var(--mono)">'+item.kcal+' kcal</span>'+
-      '</div>'+
-      '<div style="display:flex;gap:6px">'+
-        '<span style="font-size:10px;font-weight:700;color:#333;background:#1a1a1a;border:1px solid #222;padding:2px 7px;border-radius:6px">'+Math.round(item.ch)+'g CH</span>'+
-        '<span style="font-size:10px;font-weight:700;color:#333;background:#1a1a1a;border:1px solid #222;padding:2px 7px;border-radius:6px">'+Math.round(item.g)+'g G</span>'+
-        '<span style="font-size:10px;font-weight:700;color:#333;background:#1a1a1a;border:1px solid #222;padding:2px 7px;border-radius:6px">'+Math.round(item.p)+'g P</span>'+
-      '</div>'+
-    '</div>';
-  }).join('');
-
-  sheetEl.innerHTML=
-    '<div style="width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px"></div>'+
-    '<div style="padding:0 20px 28px">'+
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'+
-        '<div style="width:38px;height:38px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid rgba(26,77,26,0.12)">'+emojis[comida]+'</div>'+
-        '<div>'+
-          '<div style="font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.3px">'+labels[comida]+'</div>'+
-          '<div style="font-size:12px;color:var(--text3);font-weight:500">'+dayName+'</div>'+
-        '</div>'+
-      '</div>'+
-      itemsHtml+
-      '<div style="margin-top:12px;padding-top:12px;border-top:2px solid var(--border)">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-          '<span style="font-size:14px;font-weight:700;color:var(--text)">Total</span>'+
-          '<span style="font-size:22px;font-weight:900;color:var(--green);letter-spacing:-1px;font-family:var(--mono)">'+data.items.reduce((a,i)=>a+i.kcal,0)+' kcal</span>'+
-        '</div>'+
-        '<div style="display:flex;gap:6px">'+
-          (()=>{const totCH=data.items.reduce((a,i)=>a+i.ch,0);const totG=data.items.reduce((a,i)=>a+i.g,0);const totP=data.items.reduce((a,i)=>a+i.p,0);
-          return '<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);padding:3px 9px;border-radius:7px">'+Math.round(totCH)+'g CH</span>'+
-            '<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);padding:3px 9px;border-radius:7px">'+Math.round(totG)+'g G</span>'+
-            '<span style="font-size:11px;font-weight:700;color:var(--green);background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);padding:3px 9px;border-radius:7px">'+Math.round(totP)+'g P</span>';})()+ 
-        '</div>'+
-      '</div>'+
-      '<div style="font-size:11px;color:var(--text3);margin-top:8px;font-weight:500;text-align:center">Valores estimados · desliza para cerrar</div>'+
-    '</div>';
-
-  overlayEl.appendChild(sheetEl);
-  document.body.appendChild(overlayEl);
-  initSwipe(sheetEl,closeSheet);
-}
 
 function estimateCheatMeal(desc){
   const d=desc.toLowerCase();
@@ -4502,9 +4235,29 @@ function showScreen(name){
 async function initApp(user){
   appUser=user;
   try{
-    // Cargar cliente
-    const {data:client}=await sb.from('clients').select('*').eq('user_id',user.id).maybeSingle();
-    if(!client){showScreen('auth');return;}
+    // ── VERIFICACIÓN DE SEGURIDAD ──
+    // El user.id debe pertenecer a un cliente activo. Si no existe en la tabla
+    // clients (porque es un coach, una cuenta registrada sin vincular, o un user
+    // de otra app que comparta auth), CERRAMOS LA SESIÓN antes de devolver al login.
+    // Sin esto, la sesión queda activa pese a no poder entrar a la app.
+    const {data:client,error:clientErr}=await sb.from('clients').select('*').eq('user_id',user.id).maybeSingle();
+    if(clientErr){
+      // Error de red/permisos al consultar: no asumimos nada, cerramos sesión por seguridad
+      console.error('initApp clients lookup error:',clientErr);
+      await sb.auth.signOut().catch(()=>{});
+      appUser=null; clientData=null;
+      showScreen('auth');
+      setTimeout(()=>showAuthErr('No se pudo verificar la cuenta. Inténtalo de nuevo.'),50);
+      return;
+    }
+    if(!client){
+      // No es cliente — cerramos la sesión y mostramos mensaje claro
+      await sb.auth.signOut().catch(()=>{});
+      appUser=null; clientData=null;
+      showScreen('auth');
+      setTimeout(()=>showAuthErr('Esta cuenta no está vinculada a ningún entrenador. Pide a tu entrenador que te dé de alta.'),50);
+      return;
+    }
     clientData=client;
 
     // Verificar estado
@@ -4597,7 +4350,21 @@ async function initApp(user){
     document.querySelectorAll('#app-avatar').forEach(el=>{el.textContent=initial2;});
     updateNotifBadge();
 
-  }catch(e){console.error(e);showScreen('auth');}
+  }catch(e){
+    console.error('initApp error:',e);
+    // Si la excepción ocurrió antes de verificar el cliente, cerramos sesión por seguridad
+    if(!clientData){
+      await sb.auth.signOut().catch(()=>{});
+      appUser=null;
+      showScreen('auth');
+      setTimeout(()=>showAuthErr('No se pudo iniciar la app. Inténtalo de nuevo.'),50);
+    } else {
+      // Si ya teníamos cliente validado, mostrar pantalla auth con error genérico
+      // (la sesión sigue activa, podrá reintentar)
+      showScreen('auth');
+      setTimeout(()=>showAuthErr('Error al cargar los datos. Recarga la app.'),50);
+    }
+  }
 }
 
 function getWeekStart90(){
@@ -4714,6 +4481,9 @@ async function doSignIn(){
     // Mark as session-only: sign out when tab closes
     window.addEventListener('beforeunload',()=>sb.auth.signOut(),{once:true});
   }
+  // Restaurar el botón ANTES de initApp: si initApp rechaza al usuario por no ser
+  // cliente, vuelve a la pantalla auth y el botón debe estar utilizable.
+  btn.textContent='Iniciar sesión';btn.disabled=false;
   await initApp(data.user);
 }
 async function doSignUp(){
