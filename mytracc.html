@@ -1138,6 +1138,15 @@ async function cambiarRetrasoSplit(delta){
 
 /* UI del control de retraso (tarjeta verde, solo splits de ciclo). */
 function renderRetrasarSplit(){
+  // El ciclo (y por tanto el retraso) necesita un "Día 1" = start_date del
+  // mesociclo. Sin mesociclo no se puede calcular: avisamos en vez de fallar mudo.
+  if(!activeMeso||!activeMeso.start_date){
+    return ''+
+      '<div style="margin-top:12px;padding:12px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;">'+
+        '<div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:3px;">Retrasar el split</div>'+
+        '<div style="font-size:10px;color:rgba(255,255,255,.65);line-height:1.4;">Tu entrenador debe configurar la fecha de inicio del mesociclo para poder retrasar el split.</div>'+
+      '</div>';
+  }
   const off=offsetVigenteHoy();
   return ''+
     '<div style="margin-top:12px;padding:12px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;">'+
