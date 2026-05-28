@@ -1163,12 +1163,13 @@ async function guardarRetraso(reanudarStr){
     reason: 'Pausa '+pararStr+' → reanuda '+reanudarStr+' ('+paron+' día'+(paron===1?'':'s')+')'
   };
   // Caché local CON created_at y pause_from → se refleja al instante (sin F5).
-  splitAdjustments.push({pause_from:pararStr, effective_date:reanudarStr, offset_days:nuevo, created_at:nowIso});
+  const cacheRow={pause_from:pararStr, effective_date:reanudarStr, offset_days:nuevo, created_at:nowIso};
+  splitAdjustments.push(cacheRow);
   retrasoEditor={paso:'cerrado', pararStr:null};
   try{
-    const {error}=await sb.from('split_adjustments').insert(fila);
+    const {data,error}=await sb.from('split_adjustments').insert(fila).select('id').single();
     if(error){console.error('split_adjustments insert error:',error);showToast('Error al guardar','red','Comprueba tu conexión');}
-    else{showToast('Split actualizado ✓','green');}
+    else{ if(data&&data.id)cacheRow.id=data.id; showToast('Split actualizado ✓','green'); }
   }catch(e){console.error('guardarRetraso:',e);}
   render();
 }
@@ -1188,6 +1189,39 @@ async function quitarRetraso(){
     else{showToast('Split al día ✓','green');}
   }catch(e){console.error('quitarRetraso:',e);}
   render();
+}
+
+/* Deshace el ÚLTIMO retraso: borra la fila más reciente de split_adjustments
+   (por created_at). Requiere política DELETE. Mantiene el resto del histórico. */
+async function deshacerUltimoRetraso(){
+  if(!clientData||!sb)return;
+  // Buscar la fila más reciente que tenga id (las de caché sin id aún no se borran)
+  let ultima=null;
+  for(let i=0;i<splitAdjustments.length;i++){
+    const a=splitAdjustments[i];
+    if(!a||!a.id)continue;
+    if(ultima===null)ultima=a;
+    else{
+      const ta=a.created_at?Date.parse(a.created_at):0;
+      const tu=ultima.created_at?Date.parse(ultima.created_at):0;
+      if(ta>=tu)ultima=a;
+    }
+  }
+  if(!ultima||!ultima.id){
+    // Puede que la última sea de caché (sin id, recién insertada sin recargar).
+    // En ese caso quitamos la última de la caché directamente.
+    if(splitAdjustments.length){splitAdjustments.pop();render();showToast('Retraso deshecho ✓','green');}
+    return;
+  }
+  // Quitar de la caché local de inmediato (sin F5)
+  const idABorrar=ultima.id;
+  splitAdjustments=splitAdjustments.filter(a=>a.id!==idABorrar);
+  render();
+  try{
+    const {error}=await sb.from('split_adjustments').delete().eq('id',idABorrar);
+    if(error){console.error('deshacerUltimoRetraso error:',error);showToast('Error al deshacer','red');}
+    else{showToast('Retraso deshecho ✓','green');}
+  }catch(e){console.error('deshacerUltimoRetraso:',e);}
 }
 
 /* Lista de días seleccionables (de −7 a +14 respecto a hoy), para parar o reanudar.
@@ -1222,9 +1256,17 @@ function renderRetrasarSplit(){
   }
   const off=offsetVigenteHoy();
 
-  // COLAPSADO: solo botón (limpio).
+  // Iconos SVG (no emojis)
+  const icoCal='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+  const icoUndo='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>';
+
+  // COLAPSADO: botón "Retrasar split" + (si hay retraso) botón deshacer al lado.
   if(retrasoEditor.paso==='cerrado'){
-    return '<button onclick="abrirRetraso()" style="margin-top:12px;width:100%;height:34px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">📅 '+(off>0?('Split retrasado '+off+' día'+(off===1?'':'s')+' · ajustar'):'Retrasar split')+'</button>';
+    const btnRetrasar='<button onclick="abrirRetraso()" style="flex:1;height:34px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">'+icoCal+'<span>'+(off>0?('Retrasado '+off+' día'+(off===1?'':'s')):'Retrasar split')+'</span></button>';
+    const btnDeshacer = off>0
+      ? '<button onclick="deshacerUltimoRetraso()" title="Deshacer último retraso" style="width:34px;height:34px;flex-shrink:0;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;">'+icoUndo+'</button>'
+      : '';
+    return '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;">'+btnRetrasar+btnDeshacer+'</div>';
   }
 
   // DESPLEGADO
