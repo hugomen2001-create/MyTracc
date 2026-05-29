@@ -2479,7 +2479,15 @@ function renderProgreso(){
   }
   const revsW=revs.filter(r=>r.weight_kg!=null); // orden desc por semana
   const pesoActual = allW.length ? allW[allW.length-1].w : (revsW.length ? parseFloat(revsW[0].weight_kg) : null);
-  const baseW = revsW.length ? parseFloat(revsW[revsW.length-1].weight_kg) : (allW.length ? allW[0].w : null);
+  // Referencia = primer pesaje desde que empezó el mesociclo actual
+  let baseW=null;
+  if(activeMeso&&activeMeso.start_date&&allW.length){
+    const startStr=String(activeMeso.start_date).slice(0,10);
+    const firstInMeso=allW.find(p=>p.date>=startStr);
+    if(firstInMeso){ baseW=firstInMeso.w; }
+    else { const before=allW.filter(p=>p.date<startStr); if(before.length)baseW=before[before.length-1].w; }
+  }
+  if(baseW==null) baseW = allW.length ? allW[0].w : (revsW.length ? parseFloat(revsW[revsW.length-1].weight_kg) : null);
   const delta = (pesoActual!=null && baseW!=null) ? +(pesoActual-baseW).toFixed(1) : null;
   let mesoWeek=null;
   if(activeMeso&&activeMeso.start_date){
@@ -2509,7 +2517,7 @@ function renderProgreso(){
       '</div>'+
       (delta!=null?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:11px;padding:8px 12px;text-align:center;flex-shrink:0">'+
         '<div style="font-size:15px;font-weight:800;color:#16a34a;line-height:1">'+deltaTxt+'</div>'+
-        '<div style="font-size:8.5px;font-weight:700;color:rgba(22,163,74,.7);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">desde la 1ª</div>'+
+        '<div style="font-size:8.5px;font-weight:700;color:rgba(22,163,74,.7);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">en este meso</div>'+
       '</div>':'')+
     '</div>'+
     '<div style="display:flex;gap:18px;margin-top:14px;padding-top:13px;border-top:1px solid #f0f0ec">'+
