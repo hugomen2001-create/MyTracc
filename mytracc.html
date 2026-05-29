@@ -3523,9 +3523,6 @@ async function openEvolucion(session){
   // Helpers
   function getBestKg(exO){
     let best=0;
-    (histSess[exO]||[]).forEach(r=>r.s.split('/').forEach(s=>{
-      const m=s.match(/\d+x([\d.,]+)/);if(m)best=Math.max(best,parseFloat(m[1].replace(',','.')));
-    }));
     sessionDates.forEach(({dd})=>{
       ((dd.sets&&dd.sets[exO])||[]).forEach(s=>{if(s&&s.kg)best=Math.max(best,parseFloat(s.kg));});
     });
@@ -3545,11 +3542,12 @@ async function openEvolucion(session){
     return m;
   }
 
-  function fmtSetsCol(sets){
-    if(!sets||!sets.some(s=>s&&(s.reps||s.kg)))return '<div style="color:#ccc;font-size:11px;padding:4px 0">—</div>';
+  function fmtSetsCol(sets,accent){
+    if(!sets||!sets.some(s=>s&&(s.reps||s.kg)))return '<div style="color:#d4d4cc;font-size:13px;padding:6px 0">—</div>';
+    const pillBg=accent?'#fff':'#f5f5f3';
     return sets.filter(s=>s&&(s.reps||s.kg)).map(s=>
-      '<div style="font-size:11px;font-weight:700;color:#111;line-height:1.9;white-space:nowrap">'+
-        (s.reps||'?')+'<span style="color:#ccc;font-weight:400">×</span>'+(s.kg||'?')+
+      '<div style="display:inline-block;background:'+pillBg+';border-radius:8px;padding:3px 9px;margin:2px 0;font-size:13px;font-weight:700;color:#111;white-space:nowrap;line-height:1.25">'+
+        (s.reps||'?')+'<span style="color:#c4c4bd;font-weight:500;margin:0 1px">×</span><span style="color:#16a34a">'+(s.kg||'?')+'</span>'+
       '</div>'
     ).join('');
   }
@@ -3570,15 +3568,16 @@ async function openEvolucion(session){
     sessionDates.push({wk:null,di:null,dd:{sets:{}},label:'',empty:true});
   }
 
-  // Columnas: Mesociclo ant. + sesiones live S1, S2... Sx Actual
+  // Columnas: solo sesiones live S1, S2... Sx (la última = Actual)
   const cols=[
-    {label:'Mesociclo', sub:'anterior', isHist:true, isLast:false, idx:-1},
     ...sessionDates.map((s,i)=>{
-      const isLast=!s.empty&&i===sessionDates.filter(x=>!x.empty).length-1;
+      const realCount=sessionDates.filter(x=>!x.empty).length;
+      const isLast=!s.empty&&i===realCount-1;
       const num=i+1;
+      const d=s.wk?(s.wk.slice(8)+'/'+s.wk.slice(5,7)):'';
       return {
         label:'S'+num,
-        sub: isLast?'Actual':'',
+        sub: isLast?'Actual':d,
         isHist:false,
         isLast,
         isEmpty:s.empty,
@@ -3588,63 +3587,75 @@ async function openEvolucion(session){
     })
   ];
 
-  // 80px nombre + 77px×4 columnas (meso + 3 sesiones) = 388px — cabe en cualquier móvil
-  const COL_W=77;
-  const NAME_W=80;
+  // 96px nombre + 86px×3 sesiones = 354px — cabe en cualquier móvil
+  const COL_W=86;
+  const NAME_W=96;
 
   let html='<div style="padding-bottom:80px">';
 
-  // ── Resumen de progreso global ──
+  // ── Resumen de progreso ──
   if(total>0){
-    // Calcular mejora de volumen total primera vs última sesión
-    const firstDD=sessionDates[0].dd;
+    // PRs: ejercicios cuya última sesión iguala o supera tu mejor marca del mesociclo
     const lastDD=sessionDates[total-1].dd;
-    let volFirst=0,volLast=0;
+    let prCount=0;
     exs.forEach(ex=>{
-      ((firstDD.sets&&firstDD.sets[ex.o])||[]).forEach(s=>{if(s&&s.reps&&s.kg)volFirst+=parseInt(s.reps)*parseFloat(s.kg);});
-      ((lastDD.sets&&lastDD.sets[ex.o])||[]).forEach(s=>{if(s&&s.reps&&s.kg)volLast+=parseInt(s.reps)*parseFloat(s.kg);});
+      const best=getBestKg(ex.o);
+      const maxLast=getMaxKgInSets((lastDD.sets&&lastDD.sets[ex.o])||[]);
+      if(best>0&&maxLast>0&&maxLast>=best)prCount++;
     });
-    const volDiff=volLast-volFirst;
-    const volPct=volFirst>0?Math.round(volDiff/volFirst*100):0;
 
-    html+='<div style="margin:16px 16px 0;background:#fff;border-radius:16px;border:1.5px solid #eaeae6;padding:16px;display:flex;gap:12px">'+
-      '<div style="flex:1;text-align:center;border-right:1px solid #eaeae6;padding-right:12px">'+
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-1px;line-height:1">'+total+'</div>'+
-        '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Sesiones</div>'+
-      '</div>'+
-      '<div style="flex:1;text-align:center;border-right:1px solid #eaeae6;padding-right:12px">'+
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:'+(volDiff>=0?'#16a34a':'#ef4444')+';letter-spacing:-1px;line-height:1">'+(volDiff>=0?'+':'')+volPct+'%</div>'+
-        '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Volumen</div>'+
-      '</div>'+
-      '<div style="flex:1;text-align:center">'+
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-1px;line-height:1">'+exs.length+'</div>'+
-        '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Ejercicios</div>'+
+    html+='<div style="padding:18px 16px 0">'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:#111;letter-spacing:-.4px;margin-bottom:12px">Tu progreso</div>'+
+      '<div style="background:#fff;border-radius:16px;border:1.5px solid #eaeae6;padding:18px 14px;display:flex;align-items:center;gap:0">'+
+        '<div style="flex:1;text-align:center">'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:#111;letter-spacing:-1px;line-height:1">'+total+'</div>'+
+          '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-top:5px">Sesiones</div>'+
+        '</div>'+
+        '<div style="width:1px;align-self:stretch;background:#eaeae6;margin:2px 0"></div>'+
+        '<div style="flex:1;text-align:center">'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:'+(prCount>0?'#16a34a':'#111')+';letter-spacing:-1px;line-height:1">'+prCount+'</div>'+
+          '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-top:5px">PRs</div>'+
+        '</div>'+
+        '<div style="width:1px;align-self:stretch;background:#eaeae6;margin:2px 0"></div>'+
+        '<div style="flex:1;text-align:center">'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:#111;letter-spacing:-1px;line-height:1">'+exs.length+'</div>'+
+          '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-top:5px">Ejercicios</div>'+
+        '</div>'+
       '</div>'+
     '</div>';
   }
 
   // ── Tabla principal ──
-  html+='<div style="margin:16px 0 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">';
+  html+='<div style="padding:18px 16px 0">';
+  html+='<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:#111;letter-spacing:-.4px;margin-bottom:12px">Historial por sesión</div>';
+  html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)">';
+  html+='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">';
   html+='<table style="border-collapse:collapse;min-width:max-content;width:100%">';
 
   // Header
   html+='<thead><tr>';
-  html+='<th style="position:sticky;left:0;z-index:10;background:#f5f5f3;width:'+NAME_W+'px;min-width:'+NAME_W+'px;max-width:'+NAME_W+'px;padding:10px 6px;text-align:left;border-bottom:2px solid #eaeae6;border-right:2px solid #eaeae6">'+
-    '<div style="font-size:9px;font-weight:800;color:#ccc;text-transform:uppercase;letter-spacing:.08em">Ej.</div>'+
+  html+='<th style="position:sticky;left:0;z-index:10;background:#fafaf8;width:'+NAME_W+'px;min-width:'+NAME_W+'px;max-width:'+NAME_W+'px;padding:13px 10px;text-align:left;border-bottom:1.5px solid #eaeae6;border-right:1.5px solid #eaeae6">'+
+    '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.08em">Ejercicio</div>'+
   '</th>';
 
   cols.forEach(col=>{
     const isLast=col.isLast;
-    const isHist=col.isHist;
     if(col.isEmpty){
-      html+='<th style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:10px 8px;text-align:center;border-bottom:2px solid #f0f0ec;background:#fafafa">'+
-        '<div style="font-size:11px;font-weight:700;color:#ddd">—</div>'+
+      html+='<th style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:13px 8px;text-align:center;border-bottom:1.5px solid #eaeae6;background:#fcfcfb">'+
+        '<div style="font-size:13px;font-weight:800;color:#dcdcd4">—</div>'+
       '</th>';
       return;
     }
-    html+='<th style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:10px 8px;text-align:center;border-bottom:2px solid '+(isLast?'#16a34a':'#eaeae6')+';background:'+(isLast?'#f0fdf4':isHist?'#fafafa':'#fff')+'">'+
-      '<div style="font-size:11px;font-weight:800;color:'+(isLast?'#16a34a':isHist?'#bbb':'#666')+';line-height:1.2">'+col.label+'</div>'+
-      '<div style="font-size:9px;font-weight:600;color:'+(isLast?'rgba(22,163,74,.6)':'#ccc')+';margin-top:2px">'+col.sub+'</div>'+
+    if(isLast){
+      html+='<th style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:11px 8px;text-align:center;background:#16a34a">'+
+        '<div style="font-size:14px;font-weight:800;color:#fff;line-height:1.1;letter-spacing:-.2px">'+col.label+'</div>'+
+        '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.8);margin-top:3px;text-transform:uppercase;letter-spacing:.04em">'+col.sub+'</div>'+
+      '</th>';
+      return;
+    }
+    html+='<th style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:11px 8px;text-align:center;border-bottom:1.5px solid #eaeae6;background:#fff">'+
+      '<div style="font-size:14px;font-weight:800;color:#444;line-height:1.1;letter-spacing:-.2px">'+col.label+'</div>'+
+      '<div style="font-size:9px;font-weight:600;color:#bbb;margin-top:3px">'+col.sub+'</div>'+
     '</th>';
   });
   html+='</tr></thead>';
@@ -3653,52 +3664,44 @@ async function openEvolucion(session){
   html+='<tbody>';
   exs.forEach((ex,exi)=>{
     const bestKg=getBestKg(ex.o);
-    const histData=histSess[ex.o]||[];
     const isEven=exi%2===0;
+    const rowBg=isEven?'#fff':'#fcfcfb';
 
     html+='<tr>';
     // Nombre fijo
-    html+='<td style="position:sticky;left:0;z-index:5;background:'+(isEven?'#fff':'#fafaf8')+';width:'+NAME_W+'px;min-width:'+NAME_W+'px;max-width:'+NAME_W+'px;padding:10px 6px;border-bottom:1px solid #f0f0ec;border-right:2px solid #eaeae6;vertical-align:middle">'+
-      '<div style="font-size:9px;font-weight:700;color:#ccc;margin-bottom:2px">'+ex.o+'.</div>'+
-      '<div style="font-size:10px;font-weight:700;color:#111;line-height:1.3;word-break:break-word">'+ex.n+'</div>'+
+    html+='<td style="position:sticky;left:0;z-index:5;background:'+rowBg+';width:'+NAME_W+'px;min-width:'+NAME_W+'px;max-width:'+NAME_W+'px;padding:12px 10px;border-bottom:1px solid #f2f2ee;border-right:1.5px solid #eaeae6;vertical-align:middle">'+
+      '<div style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:6px;background:#f0fdf4;color:#16a34a;font-size:9px;font-weight:800;margin-bottom:4px">'+ex.o+'</div>'+
+      '<div style="font-size:11px;font-weight:700;color:#111;line-height:1.3;word-break:break-word">'+ex.n+'</div>'+
     '</td>';
 
     // Columnas
     cols.forEach(col=>{
       const isLast=col.isLast;
-      const isHist=col.isHist;
-      let content='',hasPR=false;
 
-      // Columna vacía (padding para completar 3 sesiones)
+      // Columna vacía (padding para completar mínimo de columnas)
       if(col.isEmpty){
-        const cellBg=isEven?'#fafafa':'#f7f7f5';
-        html+='<td style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:10px 6px;background:'+cellBg+';border-bottom:1px solid #f5f5f3;border-right:1px solid #f5f5f3;vertical-align:top;text-align:center"></td>';
+        html+='<td style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:12px 6px;background:'+(isEven?'#fcfcfb':'#fafaf8')+';border-bottom:1px solid #f2f2ee;vertical-align:middle;text-align:center"><span style="color:#e2e2da;font-size:12px">·</span></td>';
         return;
       }
 
-      if(isHist){
-        const last=histData.length?histData[histData.length-1]:null;
-        content=last?fmtHistCol(last.s):'<div style="color:#ddd;font-size:12px">—</div>';
-      } else {
-        const sets=(col.dd.sets&&col.dd.sets[ex.o])||[];
-        content=fmtSetsCol(sets);
-        if(isLast&&bestKg>0){
-          const maxHere=getMaxKgInSets(sets);
-          if(maxHere>=bestKg&&maxHere>0)hasPR=true;
-        }
+      const sets=(col.dd.sets&&col.dd.sets[ex.o])||[];
+      let hasPR=false;
+      if(isLast&&bestKg>0){
+        const maxHere=getMaxKgInSets(sets);
+        if(maxHere>=bestKg&&maxHere>0)hasPR=true;
       }
+      const content=fmtSetsCol(sets,isLast);
+      const bg=isLast?'#f0fdf4':rowBg;
 
-      const bg=isLast?'#f0fdf4':isHist?'#fafafa':(isEven?'#fff':'#fafaf8');
-      html+='<td style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:10px 6px;background:'+bg+';border-bottom:1px solid #f0f0ec;border-right:1px solid #f0f0ec;vertical-align:top;text-align:center">'+
+      html+='<td style="width:'+COL_W+'px;min-width:'+COL_W+'px;padding:9px 6px;background:'+bg+';border-bottom:1px solid #f2f2ee;vertical-align:middle;text-align:center">'+
         content+
-        (hasPR?'<div style="display:inline-block;background:#dcfce7;border-radius:6px;padding:2px 7px;font-size:9px;font-weight:800;color:#16a34a;margin-top:4px;letter-spacing:.02em">PR 🏅</div>':'')+
+        (hasPR?'<div style="display:inline-block;background:#16a34a;border-radius:7px;padding:2px 8px;font-size:9px;font-weight:800;color:#fff;margin-top:5px;letter-spacing:.02em">PR 🏅</div>':'')+
       '</td>';
     });
     html+='</tr>';
   });
 
-  html+='</tbody></table></div>';
-  html+='</div>';
+  html+='</tbody></table></div></div></div></div>';
 
   body.innerHTML=html;
   panel.classList.add('open');
@@ -5264,6 +5267,43 @@ async function loadClientPlan(clientId){
   // Asignar globalmente
   Object.assign(MESO2, newMeso);
   recomputeSessions(); // derivar los tipos de entreno reales del cliente
+
+  // ── Cargar la última sesión registrada de cada tipo para mostrarla como "anterior" ──
+  // (rellena ex.p → placeholder gris en los inputs de reps/kg)
+  try{
+    const hoy=todayStr();
+    const {data:hist}=await sb.from('workout_sessions')
+      .select('session_date,session_type,workout_sets(exercise_order,set_number,reps_done,weight_kg)')
+      .eq('client_id',clientId)
+      .order('session_date',{ascending:false});
+    if(hist&&hist.length){
+      const lastByType={};
+      hist.forEach(s=>{
+        if(s.session_date===hoy)return;                 // la de hoy no cuenta como "anterior"
+        if(lastByType[s.session_type])return;            // ya tenemos la más reciente de ese tipo
+        if(!s.workout_sets||!s.workout_sets.length)return;
+        lastByType[s.session_type]=s;
+      });
+      Object.keys(lastByType).forEach(type=>{
+        const byOrder={};
+        lastByType[type].workout_sets.forEach(ws=>{
+          if(!byOrder[ws.exercise_order])byOrder[ws.exercise_order]=[];
+          byOrder[ws.exercise_order][ws.set_number-1]={reps:ws.reps_done,kg:ws.weight_kg};
+        });
+        (MESO2[type]||[]).forEach(ex=>{
+          const arr=byOrder[ex.o];
+          if(!arr||!arr.length)return;
+          const parts=[];
+          for(let i=0;i<arr.length;i++){
+            const s=arr[i];
+            parts.push(s&&s.reps!=null&&s.kg!=null ? (s.reps+'x'+s.kg) : '');
+          }
+          if(parts.some(Boolean))ex.p=parts.join(' / ');
+        });
+      });
+    }
+  }catch(e){console.warn('No se pudo cargar la sesión anterior:',e);}
+
   console.log('MESO2 cargado desde Supabase:', Object.keys(MESO2).map(k=>k+':'+MESO2[k].length+' ejs').join(', '));
   console.log('SESSIONS (tipos del plan):', SESSIONS.join(', '));
 }
