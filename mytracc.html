@@ -4007,8 +4007,8 @@ function openMetricModal(event,metric){
           return '<div style="height:54px;border-radius:14px;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#111;cursor:pointer" '+
             'data-k="'+n+'" onclick="window._mKey(this.dataset.k)">'+n+'</div>';
         }).join('')+
-        '<div style="height:54px;border-radius:14px;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;'+(metric==='peso'?'':'opacity:.3;pointer-events:none')+';" data-k="." onclick="window._mKey(this.dataset.k)">.</div>'+
-        '<div style="height:54px;border-radius:14px;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;cursor:pointer" data-k="0" onclick="window._mKey(this.dataset.k)">0</div>'+
+        '<div style="height:54px;border-radius:14px;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#111;cursor:pointer;'+(metric==='peso'?'':'visibility:hidden;pointer-events:none')+';" data-k="." onclick="window._mKey(this.dataset.k)">.</div>'+
+        '<div style="height:54px;border-radius:14px;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#111;cursor:pointer" data-k="0" onclick="window._mKey(this.dataset.k)">0</div>'+
         '<div style="height:54px;border-radius:14px;background:#f5f5f3;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer" data-k="del" onclick="window._mKey(this.dataset.k)">'+
           '<svg width="20" height="14" viewBox="0 0 24 16" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round"><path d="M20 8H4M4 8l6-6M4 8l6 6"/></svg>'+
         '</div>'+
@@ -5015,16 +5015,13 @@ function showAuthErr(msg){
   txt.textContent=msg;el.style.cssText+='display:flex;align-items:flex-start;gap:10px';
   setTimeout(()=>{el.style.display='none';el.style.alignItems='';el.style.gap='';},5000);
 }
+let _loggingOut=false;
 async function doLogout(){
-  await sb.auth.signOut();
-  appUser=null;clientData=null;gymData={};
-  metricsCache={};sessionsCache={};cheatsCache=[];activePlan=null;
-  // Cerrar panel perfil y cualquier pantalla abierta
-  const perfilPanel=document.getElementById('panel-perfil');
-  if(perfilPanel)perfilPanel.classList.remove('open');
-  ['metric-screen'].forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
-  document.querySelectorAll('[style*="z-index:700"],[style*="z-index: 700"]').forEach(el=>el.remove());
-  showScreen('welcome');
+  if(_loggingOut)return;          // evita doble ejecución (botón + onAuthStateChange)
+  _loggingOut=true;
+  try{ await sb.auth.signOut(); }catch(e){}
+  // Recargar resetea todo el estado y los overlays, y arranca en la pantalla de bienvenida.
+  location.reload();
 }
 
 // Auth state change
