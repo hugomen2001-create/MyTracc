@@ -719,7 +719,8 @@ let weekReorders={}; // week_key -> plan[] (reorganización semanal desde week_r
 let metricsCache={}; // date -> daily_metrics row
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
-let revisionsCache=[]; // array of progress_photos rows (revisiones), cada una con ._photos
+let revisionsCache=[]; // array de progress_photos (revisiones), cada una con ._photos
+let weightHistory=[]; // [{date,w}] historial COMPLETO de peso para la gráfica de Progreso
 let notifBadge=0;
 
 // gymData compatible: acceso por semana/día para mantener el render existente
@@ -2453,18 +2454,32 @@ function showWeightTip(el,w,dateLabel){
   window._wtipT=setTimeout(()=>{if(tip)tip.style.opacity='0';},2200);
 }
 
+function setWeightRange(r){
+  state.weightRange=r;
+  render();
+}
+
 function renderProgreso(){
   const revs=revisionsCache||[];
 
   // ── Datos para el resumen y la gráfica ──
-  const weights=Object.values(metricsCache||{})
-    .filter(m=>m&&m.weight_kg!=null)
-    .map(m=>({date:String(m.date).slice(0,10),w:parseFloat(m.weight_kg)}))
-    .filter(p=>!isNaN(p.w))
-    .sort((a,b)=>a.date.localeCompare(b.date));
+  const allW = (weightHistory&&weightHistory.length) ? weightHistory.slice()
+    : Object.values(metricsCache||{})
+        .filter(m=>m&&m.weight_kg!=null)
+        .map(m=>({date:String(m.date).slice(0,10),w:parseFloat(m.weight_kg)}))
+        .filter(p=>!isNaN(p.w))
+        .sort((a,b)=>a.date.localeCompare(b.date));
+  const wRange=state.weightRange||'3m';
+  const cutoffDays = wRange==='6m'?180 : wRange==='3m'?90 : null;
+  let chartW=allW;
+  if(cutoffDays!=null){
+    const c=new Date(); c.setHours(0,0,0,0); c.setDate(c.getDate()-cutoffDays);
+    const cs=c.toISOString().slice(0,10);
+    chartW=allW.filter(p=>p.date>=cs);
+  }
   const revsW=revs.filter(r=>r.weight_kg!=null); // orden desc por semana
-  const pesoActual = weights.length ? weights[weights.length-1].w : (revsW.length ? parseFloat(revsW[0].weight_kg) : null);
-  const baseW = revsW.length ? parseFloat(revsW[revsW.length-1].weight_kg) : (weights.length ? weights[0].w : null);
+  const pesoActual = allW.length ? allW[allW.length-1].w : (revsW.length ? parseFloat(revsW[0].weight_kg) : null);
+  const baseW = revsW.length ? parseFloat(revsW[revsW.length-1].weight_kg) : (allW.length ? allW[0].w : null);
   const delta = (pesoActual!=null && baseW!=null) ? +(pesoActual-baseW).toFixed(1) : null;
   let mesoWeek=null;
   if(activeMeso&&activeMeso.start_date){
@@ -2503,11 +2518,19 @@ function renderProgreso(){
     '</div>'+
   '</div>';
 
-  // 2) Gráfica de evolución del peso
+  // 2) Gráfica de evolución del peso (con selector de rango)
+  const ranges=[['hist','Histórico'],['6m','6 meses'],['3m','3 meses']];
+  let segs='<div style="display:flex;gap:3px;background:#f0f0ec;border-radius:10px;padding:3px;margin-bottom:12px">';
+  ranges.forEach(function(rg){
+    const on=rg[0]===wRange;
+    segs+='<button onclick="setWeightRange(\''+rg[0]+'\')" style="flex:1;height:30px;border:none;border-radius:8px;background:'+(on?'#fff':'transparent')+';color:'+(on?'#111':'#999')+';font-size:11.5px;font-weight:'+(on?'700':'600')+';cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:'+(on?'0 1px 2px rgba(0,0,0,.08)':'none')+';transition:all .15s">'+rg[1]+'</button>';
+  });
+  segs+='</div>';
   html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px 16px 12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
-    '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Evolución del peso</div>'+
-    weightChartSVG(weights)+
-    (weights.length>=2?'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:#bbb;font-weight:600">'+fmtRevDate(weights[0].date)+'</span><span style="font-size:10px;color:#bbb;font-weight:600">'+fmtRevDate(weights[weights.length-1].date)+'</span></div>':'')+
+    '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Evolución del peso</div>'+
+    segs+
+    weightChartSVG(chartW)+
+    (chartW.length>=2?'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:#bbb;font-weight:600">'+fmtRevDate(chartW[0].date)+'</span><span style="font-size:10px;color:#bbb;font-weight:600">'+fmtRevDate(chartW[chartW.length-1].date)+'</span></div>':'')+
   '</div>';
 
   // 3) Antes vs ahora (si hay 2+ revisiones con foto)
@@ -5120,6 +5143,14 @@ async function initApp(user){
 
     // Cargar revisiones (fotos + notas que sube el entrenador) para la pestaña Progreso
     await loadRevisions(client.id);
+
+    // Cargar historial COMPLETO de peso (para la gráfica de Progreso con filtros 3m/6m/histórico)
+    try{
+      const {data:wh}=await sb.from('daily_metrics')
+        .select('date,weight_kg').eq('client_id',client.id)
+        .not('weight_kg','is',null).order('date',{ascending:true});
+      weightHistory=(wh||[]).map(m=>({date:String(m.date).slice(0,10),w:parseFloat(m.weight_kg)})).filter(p=>!isNaN(p.w));
+    }catch(e){console.warn('loadWeightHistory:',e);weightHistory=[];}
 
     // Construir metricsCache
     metricsCache={};
