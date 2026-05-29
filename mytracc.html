@@ -570,9 +570,9 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
       <div class="tab-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 100 14A7 7 0 0012 2z"/><path d="M12 6v6l4 2"/><path d="M5 20h14"/></svg></div>
       <span>Dieta</span><div class="tab-dot"></div>
     </button>
-    <button class="tab-item" onclick="switchTab('cheats')" id="tab-cheats">
-      <div class="tab-icon-wrap"><svg viewBox="0 0 24 24"><path d="M5 8a4 4 0 014-4h6a4 4 0 014 4H5z"/><path d="M4 11h16M4 14h16"/><path d="M5 17h14a2 2 0 01-2 2H7a2 2 0 01-2-2z"/></svg></div>
-      <span>Cheats</span><div class="tab-dot"></div>
+    <button class="tab-item" onclick="switchTab('progress')" id="tab-progress">
+      <div class="tab-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+      <span>Progreso</span><div class="tab-dot"></div>
     </button>
   </div>
 </div><!-- fin .app -->
@@ -714,6 +714,7 @@ let weekReorders={}; // week_key -> plan[] (reorganización semanal desde week_r
 let metricsCache={}; // date -> daily_metrics row
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
+let revisionsCache=[]; // array of progress_photos rows (revisiones), cada una con ._photos
 let notifBadge=0;
 
 // gymData compatible: acceso por semana/día para mantener el render existente
@@ -1317,7 +1318,7 @@ function switchTab(tab){
   state.tab=tab;
   state.selectedDay=todayIdx();
   state.showWeekReorder=false;
-  ['home','train','diet','cheats'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('active',x===tab));
+  ['home','train','diet','progress'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('active',x===tab));
   // Home has inline header, other tabs use the app-bar header
   const hdr=document.querySelector('.header');
   // Header always hidden (home uses inline header)
@@ -1400,7 +1401,7 @@ function render(){
       c.innerHTML=renderTrain();
     }
     else if(state.tab==='diet')c.innerHTML=renderDiet();
-    else if(state.tab==='cheats')c.innerHTML=renderCheats();
+    else if(state.tab==='progress'){c.innerHTML=renderProgreso();hydrateRevisionPhotos();}
   }
 }
 
@@ -2315,6 +2316,144 @@ async function ncSaveAll(){
   closeNutritionConfig();
 }
 
+
+// ── PROGRESO: revisiones del entrenador (fotos + peso + notas) ──
+const REV_PHOTOS_BUCKET='progress-photos';
+
+function escHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Carga las revisiones del cliente + sus fotos desde Supabase
+async function loadRevisions(clientId){
+  try{
+    const {data:revs,error}=await sb.from('progress_photos')
+      .select('*')
+      .eq('client_id',clientId)
+      .order('revision_week',{ascending:false});
+    if(error){console.warn('loadRevisions:',error);revisionsCache=[];return;}
+    revisionsCache=revs||[];
+    if(revisionsCache.length){
+      const ids=revisionsCache.map(r=>r.id);
+      const {data:rphotos}=await sb.from('revision_photos')
+        .select('*').in('revision_id',ids).order('created_at',{ascending:true});
+      const byRev={};
+      (rphotos||[]).forEach(rp=>{(byRev[rp.revision_id]=byRev[rp.revision_id]||[]).push(rp);});
+      revisionsCache.forEach(r=>{r._photos=byRev[r.id]||[];});
+    }
+  }catch(e){console.warn('loadRevisions exception:',e);revisionsCache=[];}
+}
+
+// URL firmada (1h) para una foto del bucket privado
+async function signedRevPhotoUrl(path){
+  if(!path)return null;
+  try{
+    const {data,error}=await sb.storage.from(REV_PHOTOS_BUCKET).createSignedUrl(path,3600);
+    if(error){console.warn('signedRevPhotoUrl:',error);return null;}
+    return data?data.signedUrl:null;
+  }catch(e){return null;}
+}
+
+// Rellena los <img data-revphoto> con sus URLs firmadas
+async function hydrateRevisionPhotos(){
+  const imgs=document.querySelectorAll('img[data-revphoto]');
+  imgs.forEach(async img=>{
+    if(img.dataset.loaded)return;
+    const path=img.getAttribute('data-revphoto');
+    if(!path)return;
+    const url=await signedRevPhotoUrl(path);
+    if(url){img.src=url;img.dataset.loaded='1';}
+  });
+}
+
+// Visor de foto a pantalla completa
+function openPhotoLightbox(imgEl){
+  if(!imgEl||!imgEl.src)return;
+  let ov=document.getElementById('rev-lightbox');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='rev-lightbox';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.onclick=()=>{ov.style.display='none';};
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML='<img src="'+imgEl.src+'" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain">';
+  ov.style.display='flex';
+}
+
+function fmtRevDate(d){
+  if(!d)return '';
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const p=String(d).slice(0,10).split('-');
+  if(p.length<3)return d;
+  return parseInt(p[2],10)+' '+(meses[parseInt(p[1],10)-1]||'')+' '+p[0];
+}
+
+function renderProgreso(){
+  const revs=revisionsCache||[];
+  let html='<div style="padding:14px 16px 16px">';
+
+  // Cabecera
+  html+='<div style="margin:8px 0 16px">'+
+    '<div style="font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Tu seguimiento</div>'+
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1">Tus <em style="color:#16a34a;font-style:italic">revisiones.</em></div>'+
+  '</div>';
+
+  if(!revs.length){
+    html+='<div style="background:#fff;border:1.5px dashed #e0e0d8;border-radius:18px;padding:34px 22px;text-align:center">'+
+      '<div style="font-size:36px;margin-bottom:12px">📸</div>'+
+      '<div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px">Aún no hay revisiones</div>'+
+      '<div style="font-size:12.5px;color:#bbb;line-height:1.55">Cuando hagas una revisión con tu entrenador,<br>aquí verás tus fotos, tu peso y sus notas.</div>'+
+    '</div>';
+  } else {
+    revs.forEach(rev=>{
+      const fecha=fmtRevDate(rev.revision_date);
+      const fotos=rev._photos||[];
+      const hasNote=!!(rev.notes&&String(rev.notes).trim());
+      html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">';
+      // Cabecera de la revisión
+      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:'+((hasNote||fotos.length)?'13px':'0')+'">'+
+        '<div>'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111;letter-spacing:-.3px;line-height:1">Semana '+(rev.revision_week!=null?rev.revision_week:'—')+'</div>'+
+          (fecha?'<div style="font-size:11px;color:#bbb;font-weight:600;margin-top:3px">'+fecha+'</div>':'')+
+        '</div>'+
+        (rev.weight_kg!=null?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:7px 13px;text-align:center;flex-shrink:0">'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#16a34a;line-height:1">'+rev.weight_kg+'</div>'+
+          '<div style="font-size:8px;font-weight:800;color:rgba(22,163,74,.7);text-transform:uppercase;letter-spacing:.06em;margin-top:1px">kg</div>'+
+        '</div>':'')+
+      '</div>';
+      // Nota del entrenador
+      if(hasNote){
+        html+='<div style="background:#f5f5f3;border-radius:12px;padding:11px 13px;margin-bottom:'+(fotos.length?'13px':'0')+'">'+
+          '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">📋 Nota de tu entrenador</div>'+
+          '<div style="font-size:13px;color:#444;line-height:1.5;white-space:pre-wrap">'+escHtml(rev.notes)+'</div>'+
+        '</div>';
+      }
+      // Fotos
+      if(fotos.length){
+        html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+        fotos.forEach(f=>{
+          html+='<div>'+
+            '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
+              '<img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
+            '</div>'+
+            (f.label?'<div style="font-size:10px;color:#888;font-weight:600;margin-top:5px;text-align:center;line-height:1.3">'+escHtml(f.label)+'</div>':'')+
+          '</div>';
+        });
+        html+='</div>';
+      } else {
+        html+='<div style="font-size:12px;color:#ccc;text-align:center;padding:6px 0">Sin fotos en esta revisión todavía</div>';
+      }
+      html+='</div>';
+    });
+  }
+
+  html+='</div>';
+
+  // Cheats degradados: ahora viven como sección dentro de Progreso
+  html+=renderCheats();
+  return html;
+}
 
 function renderCheats(){
   const cheats=gymData.cheats||[];
@@ -4820,6 +4959,9 @@ async function initApp(user){
 
     // Cargar plan de ejercicios dinámico desde client_plans
     await loadClientPlan(client.id);
+
+    // Cargar revisiones (fotos + notas que sube el entrenador) para la pestaña Progreso
+    await loadRevisions(client.id);
 
     // Construir metricsCache
     metricsCache={};
