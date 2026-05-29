@@ -700,6 +700,12 @@ let timerInt=null,timerSec=0,timerTotal=0;
 let appUser=null, clientData=null, coachData=null;
 let activePlan=null, planExercises=[];
 let activeNutritionPlan=null, nutritionOptions=[], weeklyNutrition=null;
+// True si el plan nutricional activo es distinto al plan al que apunta el weekly_nutrition
+// del cliente (típicamente tras promoción de un plan futuro). MyTracc muestra banner
+// "Reconfigura tu semana" para que el cliente vuelva a elegir sus opciones.
+let nutritionPlanChanged=false;
+// Próximo plan programado (si existe): {plan, date} para mostrar banner "Tu plan cambia el [fecha]"
+let scheduledTrainingPlan=null, scheduledNutritionPlan=null;
 // Estado del flujo de configurar dieta (paso 1: explorar+asignar, paso 2: revisar)
 let nutritionConfig={open:false, step:1, draft:null, expandedOpt:null, viewingDay:null};
 let activeMeso=null;
@@ -1517,6 +1523,37 @@ function renderHome(){
   return html;
 }
 
+// Banner amarillo "Tu plan cambia el [fecha]" — kind='train' o 'diet'
+// Devuelve '' si no hay plan futuro programado para esa sección.
+function scheduledBannerHtml(kind){
+  const sp=kind==='diet'?scheduledNutritionPlan:scheduledTrainingPlan;
+  if(!sp||!sp.activation_date)return '';
+  const fecha=formatScheduledDate(sp.activation_date);
+  const tipoTxt=kind==='diet'?'plan nutricional':'plan de entreno';
+  return '<div style="margin:0 16px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:10px;">'+
+    '<div style="width:30px;height:30px;border-radius:9px;background:#fef3c7;border:1.5px solid #fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'+
+    '</div>'+
+    '<div style="flex:1;font-size:12px;line-height:1.4;color:#92400e;">'+
+      'Tu '+tipoTxt+' cambia el <strong>'+fecha+'</strong>'+
+    '</div>'+
+  '</div>';
+}
+
+// Banner azul "Reconfigura tu semana" cuando el plan nutricional ha cambiado
+// y las elecciones del cliente quedaron huérfanas.
+function reconfigureBannerHtml(){
+  if (!nutritionPlanChanged) return '';
+  return '<div style="margin:0 16px 12px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:10px;">'+
+    '<div style="width:30px;height:30px;border-radius:9px;background:#dbeafe;border:1.5px solid #bfdbfe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>'+
+    '</div>'+
+    '<div style="flex:1;font-size:12px;line-height:1.4;color:#1e40af;">'+
+      '<strong>Reconfigura tu semana.</strong> Tu plan nutricional cambió. Vuelve a elegir las opciones para cada día.'+
+    '</div>'+
+  '</div>';
+}
+
 function renderTrain(){
   const wk=weekKey(),di=state.selectedDay,todayI=todayIdx();
   const dd=getDayData(wk,di),weekPlan=getWeekPlan(wk);
@@ -1709,7 +1746,7 @@ function renderTrain(){
   return '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#f5f5f3">'+
     '<div style="flex:1;overflow-y:auto;padding:68px 16px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-y:contain">'+
       '<style>#main-content ::-webkit-scrollbar{display:none}</style>'+
-      sessionHeader+daySelector+sessionBanner+exerciseCards+notes+exportBtn+
+      sessionHeader+scheduledBannerHtml('train')+daySelector+sessionBanner+exerciseCards+notes+exportBtn+
     '</div>'+
     finishBar+
   '</div>';
@@ -1908,7 +1945,7 @@ function renderDietSupabase(sel, dayName, isToday){
 
   return '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#f5f5f3">'+
     '<div style="flex:1;overflow-y:auto;padding-bottom:80px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
-      header+banner+macrosCard+daySelector+mealsHtml+editBtn+
+      header+scheduledBannerHtml('diet')+reconfigureBannerHtml()+banner+macrosCard+daySelector+mealsHtml+editBtn+
     '</div>'+
   '</div>';
 }
@@ -1936,6 +1973,7 @@ async function selectDayOption(optNum){
     showToast('No se pudo guardar','red','Inténtalo de nuevo');
     return;
   }
+  nutritionPlanChanged=false; // ya reconfiguró
   openMeals={};
   showToast('Guardado ✓','green');
   render();
@@ -4567,6 +4605,93 @@ function showScreen(name){
   }
 }
 
+// ════════════════════════════════════════════════════════════
+// ACTIVACIÓN PROGRAMADA DE PLANES (Sub-bloque 3.3)
+// MyTracc lee el plan que toca según fecha y avisa de cambios futuros.
+// ════════════════════════════════════════════════════════════
+
+// Para una tabla concreta (training_plans o nutrition_plans):
+// - Si hay un plan con activation_date <= hoy que NO es is_active=true,
+//   lo promociona (lo marca activo y archiva el anterior).
+// - Solo hace una promoción por carga: el plan más reciente con fecha pasada
+//   que aún no esté activo.
+async function _promoteIfNeeded(clientId, table){
+  const hoyStr=new Date().toISOString().slice(0,10);
+  // Todos los planes del cliente ordenados por activation_date DESC
+  const {data:planes,error}=await sb.from(table)
+    .select('id,is_active,activation_date,archived_at')
+    .eq('client_id',clientId)
+    .order('activation_date',{ascending:false});
+  if(error||!planes||!planes.length)return;
+  // Buscar el plan que DEBERÍA estar activo hoy:
+  // el más reciente con activation_date <= hoy
+  const debeEstarActivo=planes.find(p=>String(p.activation_date)<=hoyStr);
+  if(!debeEstarActivo)return; // ningún plan ha "entrado en vigor" todavía
+  if(debeEstarActivo.is_active)return; // ya está activo, nada que hacer
+
+  // Promocionar: archivar todos los demás como inactivos + activar este
+  const ahora=new Date().toISOString();
+  // 1) archivar los que estaban activos
+  const {error:e1}=await sb.from(table)
+    .update({is_active:false,archived_at:ahora})
+    .eq('client_id',clientId)
+    .eq('is_active',true);
+  if(e1){console.error(table+' archivar error:',e1);return;}
+  // 2) activar el nuevo
+  const {error:e2}=await sb.from(table)
+    .update({is_active:true,archived_at:null})
+    .eq('id',debeEstarActivo.id);
+  if(e2){console.error(table+' activar error:',e2);return;}
+  console.log('[activación programada]',table,'promoted',debeEstarActivo.id);
+}
+
+async function promoteScheduledPlans(clientId){
+  if(!clientId)return;
+  await _promoteIfNeeded(clientId,'training_plans');
+  await _promoteIfNeeded(clientId,'nutrition_plans');
+}
+
+// Carga (si existe) el próximo plan programado con activation_date > hoy
+// para mostrar el banner "Tu plan cambia el [fecha]" en MyTracc.
+async function loadScheduledPlans(clientId){
+  scheduledTrainingPlan=null;
+  scheduledNutritionPlan=null;
+  if(!clientId)return;
+  const hoyStr=new Date().toISOString().slice(0,10);
+  const [tRes,nRes]=await Promise.all([
+    sb.from('training_plans')
+      .select('id,activation_date')
+      .eq('client_id',clientId)
+      .eq('is_active',false)
+      .gt('activation_date',hoyStr)
+      .order('activation_date',{ascending:true})
+      .limit(1)
+      .maybeSingle(),
+    sb.from('nutrition_plans')
+      .select('id,activation_date')
+      .eq('client_id',clientId)
+      .eq('is_active',false)
+      .gt('activation_date',hoyStr)
+      .order('activation_date',{ascending:true})
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  scheduledTrainingPlan=tRes&&tRes.data||null;
+  scheduledNutritionPlan=nRes&&nRes.data||null;
+}
+
+// Formatea una fecha 'YYYY-MM-DD' a "15 jun" o "15 jun 2027" si no es este año.
+function formatScheduledDate(dateStr){
+  if(!dateStr)return '';
+  const d=new Date(String(dateStr).slice(0,10)+'T00:00:00');
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const dia=d.getDate();
+  const mes=meses[d.getMonth()];
+  const ano=d.getFullYear();
+  const anoHoy=new Date().getFullYear();
+  return ano===anoHoy?(dia+' '+mes):(dia+' '+mes+' '+ano);
+}
+
 async function initApp(user){
   appUser=user;
   try{
@@ -4598,6 +4723,11 @@ async function initApp(user){
     // Verificar estado
     if(client.status==='pending'){showScreen('pending');return;}
 
+    // ── Activación programada: promocionar planes cuya activation_date ya ha llegado.
+    // Si el coach programó un plan futuro y la fecha ya pasó, lo marcamos como activo
+    // y archivamos el anterior antes de cargar los datos del cliente.
+    await promoteScheduledPlans(client.id);
+
     // Cargar datos en paralelo
     const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
@@ -4614,6 +4744,10 @@ async function initApp(user){
     activeMeso=mesoRes.data||null;
     splitAdjustments=(adjustmentsRes&&adjustmentsRes.data)||[];
     activeNutritionPlan=nutritionRes.data||null;
+
+    // Cargar info de planes futuros (para el banner "tu plan cambia el ...")
+    await loadScheduledPlans(client.id);
+
     recomputeSessions(); // tipos de entreno desde el split (antes incluso de MESO2)
 
     // Construir caché de reorganizaciones semanales desde Supabase
@@ -4632,6 +4766,19 @@ async function initApp(user){
         sb.from('weekly_nutrition').select('*').eq('client_id',client.id).eq('week_start',getWeekStart()).maybeSingle()
       ]);
       nutritionOptions=optsRes.data||[];
+
+      // Detectar weekly_nutrition huérfano: la asignación semanal apunta a un
+      // plan distinto al activo (típicamente porque se promocionó un plan nuevo).
+      // En ese caso descartamos la asignación en memoria (la fila queda en BD
+      // como histórico) y avisamos al cliente con un banner para reconfigurar.
+      const weeklyRaw = weeklyRes && weeklyRes.data;
+      if (weeklyRaw && weeklyRaw.nutrition_plan_id && weeklyRaw.nutrition_plan_id !== activeNutritionPlan.id){
+        weeklyNutrition = null;
+        nutritionPlanChanged = true;
+      } else {
+        weeklyNutrition = weeklyRaw || null;
+        nutritionPlanChanged = false;
+      }
       // Normalizar los alimentos: en Supabase los macros se llaman
       // carbs/fat/protein, pero el resto del código de dieta usa ch/g/p.
       // Añadimos los alias para que todo funcione sin tocar más código.
@@ -4645,7 +4792,6 @@ async function initApp(user){
           });
         });
       });
-      weeklyNutrition=weeklyRes.data||null;
     }
 
     // Cargar plan de ejercicios dinámico desde client_plans
