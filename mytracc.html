@@ -5273,7 +5273,7 @@ async function loadClientPlan(clientId){
   try{
     const hoy=todayStr();
     const {data:hist}=await sb.from('workout_sessions')
-      .select('session_date,session_type,workout_sets(exercise_order,set_number,reps_done,weight_kg)')
+      .select('session_date,session_type,workout_sets(exercise_name,set_number,reps_done,weight_kg)')
       .eq('client_id',clientId)
       .order('session_date',{ascending:false});
     if(hist&&hist.length){
@@ -5285,13 +5285,15 @@ async function loadClientPlan(clientId){
         lastByType[s.session_type]=s;
       });
       Object.keys(lastByType).forEach(type=>{
-        const byOrder={};
+        const byName={};
         lastByType[type].workout_sets.forEach(ws=>{
-          if(!byOrder[ws.exercise_order])byOrder[ws.exercise_order]=[];
-          byOrder[ws.exercise_order][ws.set_number-1]={reps:ws.reps_done,kg:ws.weight_kg};
+          const k=ws.exercise_name;
+          if(!k)return;
+          if(!byName[k])byName[k]=[];
+          byName[k][ws.set_number-1]={reps:ws.reps_done,kg:ws.weight_kg};
         });
         (MESO2[type]||[]).forEach(ex=>{
-          const arr=byOrder[ex.o];
+          const arr=byName[ex.n];
           if(!arr||!arr.length)return;
           const parts=[];
           for(let i=0;i<arr.length;i++){
