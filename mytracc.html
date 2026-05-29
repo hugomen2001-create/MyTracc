@@ -2417,13 +2417,40 @@ function weightChartSVG(weights){
   const line=pts.join(' ');
   const area='M'+X(0).toFixed(1)+','+(H-padBot)+' L'+pts.join(' L')+' L'+X(n-1).toFixed(1)+','+(H-padBot)+' Z';
   const lastW=weights[n-1].w;
+  const shortD=d=>{const m=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];const p=String(d).split('-');return parseInt(p[2],10)+' '+(m[parseInt(p[1],10)-1]||'');};
+  // Puntos visibles + zona de toque (muestran el peso al pulsar)
+  let dots='';
+  weights.forEach((p,i)=>{
+    const cx=X(i).toFixed(1), cy=Y(p.w).toFixed(1);
+    dots+='<circle cx="'+cx+'" cy="'+cy+'" r="2.6" fill="#16a34a"/>'+
+      '<circle cx="'+cx+'" cy="'+cy+'" r="12" fill="transparent" style="cursor:pointer" onclick="showWeightTip(this,\''+p.w+'\',\''+shortD(p.date)+'\')"/>';
+  });
   return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">'+
     '<defs><linearGradient id="wgrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(22,163,74,.16)"/><stop offset="100%" stop-color="rgba(22,163,74,0)"/></linearGradient></defs>'+
     '<path d="'+area+'" fill="url(#wgrad)"/>'+
     '<polyline points="'+line+'" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'+
-    '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(lastW).toFixed(1)+'" r="4" fill="#16a34a"/>'+
     '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(lastW).toFixed(1)+'" r="8" fill="rgba(22,163,74,.18)"/>'+
+    dots+
   '</svg>';
+}
+
+// Tooltip al pulsar un punto de la gráfica de peso
+function showWeightTip(el,w,dateLabel){
+  let tip=document.getElementById('weight-tip');
+  if(!tip){
+    tip=document.createElement('div');
+    tip.id='weight-tip';
+    tip.style.cssText='position:fixed;z-index:900;background:#111;color:#fff;padding:6px 11px;border-radius:9px;font-family:\'DM Sans\',sans-serif;font-size:12.5px;font-weight:700;pointer-events:none;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.22);transform:translate(-50%,-100%);transition:opacity .12s;opacity:0';
+    document.body.appendChild(tip);
+  }
+  tip.innerHTML=w+' kg<span style="color:#9ca3af;font-weight:500"> · '+dateLabel+'</span>';
+  const r=el.getBoundingClientRect();
+  tip.style.left=(r.left+r.width/2)+'px';
+  tip.style.top=(r.top-6)+'px';
+  tip.style.display='block';
+  requestAnimationFrame(()=>{tip.style.opacity='1';});
+  clearTimeout(window._wtipT);
+  window._wtipT=setTimeout(()=>{if(tip)tip.style.opacity='0';},2200);
 }
 
 function renderProgreso(){
