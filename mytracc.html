@@ -3023,6 +3023,11 @@ function toggleDietMeal(mealName){
   });
 }
 
+function selectCheatDay(d){
+  state.cheatSelectedDay=d;
+  render();
+}
+
 function toggleCheatForm(){
   state.showCheatForm=!state.showCheatForm;
   if(!state.showCheatForm){state.cheatEstimate=null;state.cheatSelectedDay=null;}
@@ -3032,6 +3037,16 @@ function toggleCheatForm(){
 function selectTrainDay(i){state.selectedDay=i;state.pendingSets={};state.trainSession=null;state.openEx=undefined;render();}
 // kcal per meal per day (estimated from diet plan)
 
+
+function estimateAndShow(){
+  const ta=document.getElementById('cheat-desc');
+  const desc=ta?ta.value.trim():'';
+  if(!desc){showToast('Escribe qué comiste','red');return;}
+  const est=estimateCheatMeal(desc);
+  est._desc=desc;
+  state.cheatEstimate=est;
+  render();
+}
 
 function estimateCheatMeal(desc){
   const d=desc.toLowerCase();
