@@ -500,7 +500,13 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 
 <!-- LOADING SCREEN -->
 <div id="screen-loading" style="display:flex;position:fixed;inset:0;background:#f5f5f3;z-index:9000;align-items:center;justify-content:center;max-width:430px;margin:0 auto">
-  <div style="width:32px;height:32px;border:3px solid #e0e0dc;border-top-color:#16a34a;border-radius:50%;animation:spin .7s linear infinite"></div>
+  <div id="loading-spinner" style="width:32px;height:32px;border:3px solid #e0e0dc;border-top-color:#16a34a;border-radius:50%;animation:spin .7s linear infinite"></div>
+  <div id="loading-error" style="display:none;flex-direction:column;align-items:center;text-align:center;padding:0 32px;max-width:340px">
+    <div id="loading-error-icon" style="font-size:38px;margin-bottom:12px">📡</div>
+    <div id="loading-error-title" style="font-family:'DM Serif Display',serif;font-size:22px;color:#111;letter-spacing:-.3px;margin-bottom:6px">Sin conexión</div>
+    <div id="loading-error-msg" style="font-size:13.5px;color:#999;line-height:1.5;margin-bottom:20px">No hemos podido cargar tus datos. Comprueba tu conexión a internet.</div>
+    <button onclick="boot()" style="background:#111;color:#fff;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Reintentar</button>
+  </div>
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}
 /* ONBOARDING */
@@ -5144,11 +5150,55 @@ async function submitOnboarding(){
 }
 
 // ── BOOT SUPABASE ──
+let _bootTimer=null;
 async function boot(){
   showScreen('loading');
-  const {data:{session}}=await sb.auth.getSession();
-  if(!session){showScreen('welcome');return;}
-  await initApp(session.user);
+  // Resetea a estado "cargando" (por si venimos de un reintento)
+  const sp=document.getElementById('loading-spinner');
+  const er=document.getElementById('loading-error');
+  if(sp)sp.style.display='block';
+  if(er)er.style.display='none';
+  // Red de seguridad: si la carga se cuelga >15s, mostramos error con reintentar
+  if(_bootTimer)clearTimeout(_bootTimer);
+  _bootTimer=setTimeout(()=>{
+    if(document.getElementById('screen-loading')&&document.getElementById('screen-loading').style.display!=='none'){
+      showLoadError(navigator.onLine===false);
+    }
+  },15000);
+  try{
+    if(navigator.onLine===false){ showLoadError(true); return; }
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ if(_bootTimer)clearTimeout(_bootTimer); showScreen('welcome'); return; }
+    await initApp(session.user);
+    if(_bootTimer)clearTimeout(_bootTimer);
+  }catch(e){
+    console.error('boot error:',e);
+    showLoadError(navigator.onLine===false);
+  }
+}
+
+// Muestra el estado de error en la pantalla de carga (con botón Reintentar)
+function showLoadError(offline){
+  if(_bootTimer){clearTimeout(_bootTimer);_bootTimer=null;}
+  showScreen('loading');
+  const sp=document.getElementById('loading-spinner');
+  const er=document.getElementById('loading-error');
+  if(sp)sp.style.display='none';
+  if(er){
+    er.style.display='flex';
+    const icon=document.getElementById('loading-error-icon');
+    const title=document.getElementById('loading-error-title');
+    const msg=document.getElementById('loading-error-msg');
+    if(offline){
+      if(icon)icon.textContent='📡';
+      if(title)title.textContent='Sin conexión';
+      if(msg)msg.textContent='Comprueba tu conexión a internet y vuelve a intentarlo.';
+    } else {
+      if(icon)icon.textContent='⚠️';
+      if(title)title.textContent='No se pudo cargar';
+      if(msg)msg.textContent='Ha habido un problema al cargar tus datos. Inténtalo de nuevo.';
+    }
+  }
 }
 
 function showScreen(name){
@@ -5423,10 +5473,9 @@ async function initApp(user){
       showScreen('auth');
       setTimeout(()=>showAuthErr('No se pudo iniciar la app. Inténtalo de nuevo.'),50);
     } else {
-      // Si ya teníamos cliente validado, mostrar pantalla auth con error genérico
-      // (la sesión sigue activa, podrá reintentar)
-      showScreen('auth');
-      setTimeout(()=>showAuthErr('Error al cargar los datos. Recarga la app.'),50);
+      // Sesión válida pero falló la carga de datos (red, etc.): mantener sesión y
+      // ofrecer reintento en la pantalla de carga (sin obligar a iniciar sesión otra vez)
+      showLoadError(navigator.onLine===false);
     }
   }
 }
