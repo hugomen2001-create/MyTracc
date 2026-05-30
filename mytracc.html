@@ -700,7 +700,7 @@ function recomputeSessions(){
 
 const DAILY_MACROS={kcal:1960,carbs:245,fat:40,protein:155};
 let openMeals={};
-let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null};
+let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null};
 let timerInt=null,timerSec=0,timerTotal=0;
 // ── ESTADO SUPABASE ──
 let appUser=null, clientData=null, coachData=null;
@@ -722,6 +722,7 @@ let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
 let revisionsCache=[]; // array de progress_photos (revisiones), cada una con ._photos
 let weightHistory=[]; // [{date,w}] historial COMPLETO de peso para la gráfica de Progreso
+let exerciseNotesCache={}; // session_id -> { exercise_name: note }
 let notifBadge=0;
 
 // gymData compatible: acceso por semana/día para mantener el render existente
@@ -1637,6 +1638,13 @@ function renderTrain(){
     const isOpen=state.openEx===ex.o;
     const doneSetsCount=savedMarks.filter(Boolean).length;
 
+    // PR del ejercicio (mejor serie del meso) para mostrar en la propia pantalla
+    const pr=bestSetForExercise(ex.n);
+    const prPill=pr?'<span class="ex-pill" style="background:#fffbe6;color:#a16207;border:1px solid #fde68a">🏅 '+(pr.reps||'?')+'×'+pr.kg+'</span>':'';
+    // Nota del ejercicio para la sesión de este día
+    const daySess=sessionsCache[getDayDate(di)];
+    const exNote=(daySess&&daySess.id&&exerciseNotesCache[daySess.id]&&exerciseNotesCache[daySess.id][ex.n])||'';
+
     // Parse prev reps and kg from strings like "7x35"
     function prevReps(si){
       if(!prevSets[si])return '';
@@ -1664,6 +1672,7 @@ function renderTrain(){
           '<span class="ex-pill">'+ex.s+' series</span>'+
           '<span class="ex-pill">'+ex.r+'</span>'+
           '<span class="ex-pill gp">⏱ '+ex.d+"'</span>"+
+          prPill+
         '</div>'+
       '</div>'+
       videoBtnHtml+
@@ -1699,12 +1708,26 @@ function renderTrain(){
       '</div>';
     }).join('');
 
+    const noteOpen=state.openNoteEx===ex.o;
+    const noteBtnLabel=exNote?'📝 Nota ✓':'📝 Nota';
+    const noteBtnStyle=exNote
+      ?'flex:0 0 auto;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.3);color:#16a34a'
+      :'flex:0 0 auto;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888';
+    const noteField=(noteOpen||exNote)?
+      '<textarea id="exnote-'+ex.o+'" placeholder="Contexto para Pol: ej. hombro molestaba, subir banco un punto…" '+
+        'style="width:100%;margin-top:8px;border:1.5px solid #eaeae6;border-radius:10px;background:#fafaf8;padding:10px 12px;font-size:13px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:48px;outline:none;box-sizing:border-box" '+
+        'onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\'" '+
+        'onchange="saveExNote('+ex.o+',this.value)">'+escHtml(exNote)+'</textarea>'
+      :'';
+
     const body='<div style="padding:0 14px 12px;border-top:1.5px solid #eaeae6">'+
       colHdrs+setsHtml+
       '<div style="display:flex;gap:6px;margin-top:8px">'+
         '<button onclick="openExHistory(exNames['+ex.o+'],exSessions['+ex.o+'],'+ex.o+')" style="flex:1;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;border-radius:10px;padding:9px 0;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">📋 Ver historial</button>'+
         '<button onclick="copyLastSession('+ex.o+')" style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);color:#16a34a;border-radius:10px;padding:9px 0;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">⬆ Copiar anterior</button>'+
+        '<button onclick="toggleExNote('+ex.o+')" style="'+noteBtnStyle+';border-radius:10px;padding:9px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">'+noteBtnLabel+'</button>'+
       '</div>'+
+      noteField+
     '</div>';
 
     return '<div class="ex-card'+(exDone?' done':'')+(isOpen?' open':'')+'" id="ex-card-'+ex.o+'">'+header+body+'</div>';
@@ -2422,6 +2445,88 @@ function fmtRevDate(d){
   return parseInt(p[2],10)+' '+(meses[parseInt(p[1],10)-1]||'')+' '+p[0];
 }
 
+// Mejor serie registrada de un ejercicio (por nombre) en el mesociclo actual.
+// Devuelve {kg,reps} de la serie con más peso, o null si no hay datos.
+function bestSetForExercise(name){
+  if(!name)return null;
+  const startStr=(activeMeso&&activeMeso.start_date)?String(activeMeso.start_date).slice(0,10):null;
+  let best=null;
+  Object.values(sessionsCache||{}).forEach(sess=>{
+    if(!sess)return;
+    const dStr=String(sess.session_date||'').slice(0,10);
+    if(startStr && dStr < startStr)return; // solo meso actual
+    (sess.workout_sets||[]).forEach(s=>{
+      if(s && s.exercise_name===name && s.weight_kg){
+        const kg=parseFloat(s.weight_kg);
+        const reps=parseInt(s.reps_done)||0;
+        if(!best || kg>best.kg || (kg===best.kg && reps>best.reps)){
+          best={kg:kg,reps:reps};
+        }
+      }
+    });
+  });
+  return best;
+}
+
+// Racha de entreno: nº de semanas consecutivas (lunes a domingo) con ≥1 sesión
+// completada, contando hacia atrás desde la semana actual (o la anterior si esta
+// aún no tiene). Devuelve 0 si no hay racha activa.
+function trainingStreakWeeks(){
+  const dates=Object.values(sessionsCache||{})
+    .filter(s=>s && (s.completed || (s.workout_sets&&s.workout_sets.length)))
+    .map(s=>String(s.session_date||'').slice(0,10))
+    .filter(Boolean);
+  if(!dates.length)return 0;
+  // clave de semana = lunes de esa fecha (YYYY-MM-DD)
+  function monday(dStr){
+    const d=new Date(dStr+'T00:00:00');
+    const day=(d.getDay()+6)%7; // 0=lunes
+    d.setDate(d.getDate()-day);
+    return d.toISOString().slice(0,10);
+  }
+  const weeks=new Set(dates.map(monday));
+  const today=new Date();today.setHours(0,0,0,0);
+  let cursor=new Date(today);
+  const cur=monday(today.toISOString().slice(0,10));
+  // si la semana actual no tiene sesión todavía, arranca desde la anterior
+  if(!weeks.has(cur))cursor.setDate(cursor.getDate()-7);
+  let streak=0;
+  for(let i=0;i<104;i++){ // tope 2 años
+    const k=monday(cursor.toISOString().slice(0,10));
+    if(weeks.has(k)){streak++;cursor.setDate(cursor.getDate()-7);}
+    else break;
+  }
+  return streak;
+}
+
+// Resumen del mesociclo actual: {sessions, prs, weekNum, weeks, deltaKg}
+function mesoSummary(){
+  const startStr=(activeMeso&&activeMeso.start_date)?String(activeMeso.start_date).slice(0,10):null;
+  // sesiones completadas del meso
+  let sessions=0;
+  const exerciseNames=new Set();
+  Object.values(sessionsCache||{}).forEach(sess=>{
+    if(!sess)return;
+    const dStr=String(sess.session_date||'').slice(0,10);
+    if(startStr && dStr < startStr)return;
+    if(sess.completed || (sess.workout_sets&&sess.workout_sets.length))sessions++;
+    (sess.workout_sets||[]).forEach(s=>{if(s&&s.exercise_name)exerciseNames.add(s.exercise_name);});
+  });
+  // PRs: ejercicios cuya mejor serie del meso iguala o supera su histórico previo.
+  // Aproximación sencilla: nº de ejercicios distintos con peso registrado en el meso.
+  let prs=0;
+  exerciseNames.forEach(n=>{ if(bestSetForExercise(n))prs++; });
+  // semana del plan
+  let weekNum=null;
+  if(startStr){
+    const start=new Date(startStr+'T00:00:00');
+    const today=new Date();today.setHours(0,0,0,0);
+    weekNum=Math.floor((today-start)/(7*86400000))+1;
+    if(weekNum<1)weekNum=1;
+  }
+  return {sessions:sessions, prs:prs, weekNum:weekNum, exercises:exerciseNames.size};
+}
+
 // Gráfica de evolución del peso (línea + área) desde una lista [{date,w}]
 function weightChartSVG(weights){
   if(!weights||weights.length<2){
@@ -2527,6 +2632,23 @@ function renderProgreso(){
     '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1">Tu <em style="color:#16a34a;font-style:italic">progreso.</em></div>'+
   '</div>';
 
+  // 0) Racha de entreno
+  const streak=trainingStreakWeeks();
+  if(streak>=1){
+    html+='<div style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:16px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:13px;box-shadow:0 2px 8px rgba(22,163,74,.18)">'+
+      '<div style="font-size:30px;line-height:1">🔥</div>'+
+      '<div>'+
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:24px;color:#fff;line-height:1">'+streak+' '+(streak===1?'semana':'semanas')+'</div>'+
+        '<div style="font-size:11.5px;color:rgba(255,255,255,.85);font-weight:600;margin-top:2px">entrenando seguidas. ¡Sigue así!</div>'+
+      '</div>'+
+    '</div>';
+  } else {
+    html+='<div style="background:#fff;border:1.5px dashed #e0e0dc;border-radius:16px;padding:13px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">'+
+      '<div style="font-size:24px;line-height:1;opacity:.5">🔥</div>'+
+      '<div style="font-size:12.5px;color:#999;font-weight:600;line-height:1.4">Entrena esta semana para empezar tu racha.</div>'+
+    '</div>';
+  }
+
   // 1) Tarjeta resumen
   const arrow = delta==null?'':(delta<0?'↓':delta>0?'↑':'→');
   const deltaTxt = delta==null?'—':(arrow+' '+Math.abs(delta)+' kg');
@@ -2560,6 +2682,22 @@ function renderProgreso(){
     segs+
     weightChartSVG(chartW)+
     (chartW.length>=2?'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:#bbb;font-weight:600">'+fmtRevDate(chartW[0].date)+'</span><span style="font-size:10px;color:#bbb;font-weight:600">'+fmtRevDate(chartW[chartW.length-1].date)+'</span></div>':'')+
+  '</div>';
+
+  // 2b) Resumen del mesociclo
+  const ms=mesoSummary();
+  const sumDelta = delta==null?'—':((delta<0?'↓':delta>0?'↑':'→')+Math.abs(delta)+' kg');
+  const sumItem=(val,lbl)=>'<div style="flex:1;text-align:center">'+
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:24px;color:#111;line-height:1">'+val+'</div>'+
+    '<div style="font-size:9.5px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.04em;margin-top:4px">'+lbl+'</div>'+
+  '</div>';
+  html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+    '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:13px">Tu mesociclo'+(ms.weekNum!=null?' · semana '+ms.weekNum:'')+'</div>'+
+    '<div style="display:flex;gap:6px">'+
+      sumItem(ms.sessions,'Entrenos')+
+      sumItem(ms.prs,'Ejercicios')+
+      sumItem(sumDelta,'Peso')+
+    '</div>'+
   '</div>';
 
   // 3) Antes vs ahora (si hay 2+ revisiones con foto)
@@ -3007,6 +3145,53 @@ async function saveSetV2(exO,si,descanso,totalSeries){
       requestAnimationFrame(()=>{const sc3=document.querySelector('#main-content [style*="overflow-y:auto"]');if(sc3)sc3.scrollTop=st2;});
     }
   });
+}
+
+// Abre/cierra el campo de nota de un ejercicio
+function toggleExNote(exO){
+  state.openNoteEx=(state.openNoteEx===exO)?null:exO;
+  const sc=document.querySelector('#main-content [style*="overflow-y:auto"]');
+  const top=sc?sc.scrollTop:0;
+  render();
+  requestAnimationFrame(()=>{
+    const sc2=document.querySelector('#main-content [style*="overflow-y:auto"]');
+    if(sc2)sc2.scrollTop=top;
+    const ta=document.getElementById('exnote-'+exO);
+    if(ta && state.openNoteEx===exO)ta.focus();
+  });
+}
+
+// Guarda la nota de un ejercicio (upsert por session_id + exercise_name)
+async function saveExNote(exO,value){
+  const val=(value||'').trim();
+  const di=state.selectedDay,wk=weekKey();
+  const exName=(window.exNames&&window.exNames[exO])||'Ejercicio '+exO;
+  if(!clientData||!sb)return;
+  const date=getDayDate(di);
+  const weekPlan=getWeekPlan(wk);
+  const dd=getDayData(wk,di);
+  const sessionType=(dd.sessionOverride||weekPlan[di])||state.trainSession;
+  // Asegura que exista la sesión del día (igual que al guardar una serie)
+  let sess=sessionsCache[date];
+  if(!sess){
+    if(!val)return; // no crear sesión por una nota vacía
+    const {data,error}=await sb.from('workout_sessions').insert({client_id:clientData.id,session_date:date,session_type:sessionType,completed:false}).select('*').single();
+    if(error){console.error('session insert (note):',error);return;}
+    if(data){sess=data;sess.workout_sets=[];sessionsCache[date]=sess;}
+  }
+  if(!sess)return;
+  // Cache local
+  if(!exerciseNotesCache[sess.id])exerciseNotesCache[sess.id]={};
+  if(val)exerciseNotesCache[sess.id][exName]=val;
+  else delete exerciseNotesCache[sess.id][exName];
+  try{
+    if(val){
+      await sb.from('exercise_notes')
+        .upsert({session_id:sess.id,exercise_name:exName,note:val},{onConflict:'session_id,exercise_name'});
+    } else {
+      await sb.from('exercise_notes').delete().eq('session_id',sess.id).eq('exercise_name',exName);
+    }
+  }catch(e){console.warn('saveExNote:',e);}
 }
 
 async function openExHistory(exName,session,exOrder){
@@ -5188,6 +5373,18 @@ async function initApp(user){
     // Construir sessionsCache
     sessionsCache={};
     (sessionsRes.data||[]).forEach(s=>{sessionsCache[s.session_date]=s;});
+    // Cargar notas por ejercicio de esas sesiones
+    exerciseNotesCache={};
+    try{
+      const sessIds=(sessionsRes.data||[]).map(s=>s.id).filter(Boolean);
+      if(sessIds.length){
+        const {data:notesRows}=await sb.from('exercise_notes').select('session_id,exercise_name,note').in('session_id',sessIds);
+        (notesRows||[]).forEach(n=>{
+          if(!exerciseNotesCache[n.session_id])exerciseNotesCache[n.session_id]={};
+          exerciseNotesCache[n.session_id][n.exercise_name]=n.note;
+        });
+      }
+    }catch(e){console.warn('load exercise_notes:',e);}
 
     cheatsCache=cheatsRes.data||[];
 
