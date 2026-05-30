@@ -173,7 +173,7 @@ input[type=number]{-moz-appearance:textfield}
 
 /* TAB BAR */
 .tab-bar{flex-shrink:0;background:#ffffff;border-top:1.5px solid #eaeae6;display:flex;padding-bottom:calc(env(safe-area-inset-bottom) + 6px)}
-.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 4px 10px;cursor:pointer;border:none;background:none;gap:4px;color:#bbb;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;transition:color 0.15s;letter-spacing:0px}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 4px 10px;cursor:pointer;border:none;background:none;gap:4px;color:#bbb;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;transition:color 0.15s;letter-spacing:0px;position:relative}
 .tab-item.active{color:#16a34a}
 .tab-icon-wrap{width:28px;height:28px;display:flex;align-items:center;justify-content:center}
 .tab-icon-wrap svg{width:26px;height:26px;stroke:#bbb;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke 0.15s}
@@ -573,6 +573,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
     <button class="tab-item" onclick="switchTab('progress')" id="tab-progress">
       <div class="tab-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
       <span>Progreso</span><div class="tab-dot"></div>
+      <div id="progress-notif" style="display:none;position:absolute;top:6px;right:50%;transform:translateX(14px);width:8px;height:8px;border-radius:50%;background:#16a34a;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.04)"></div>
     </button>
   </div>
 </div><!-- fin .app -->
@@ -1407,7 +1408,7 @@ function render(){
       c.innerHTML=renderTrain();
     }
     else if(state.tab==='diet')c.innerHTML=renderDiet();
-    else if(state.tab==='progress'){c.innerHTML=renderProgreso();hydrateRevisionPhotos();}
+    else if(state.tab==='progress'){c.innerHTML=renderProgreso();hydrateRevisionPhotos();markRevisionsSeen();}
   }
   // Si el panel de cheats está abierto, mantenerlo sincronizado
   const cp=document.getElementById('cheats-panel');
@@ -2353,7 +2354,27 @@ async function loadRevisions(clientId){
       (rphotos||[]).forEach(rp=>{(byRev[rp.revision_id]=byRev[rp.revision_id]||[]).push(rp);});
       revisionsCache.forEach(r=>{r._photos=byRev[r.id]||[];});
     }
+    updateProgressNotif();
   }catch(e){console.warn('loadRevisions exception:',e);revisionsCache=[];}
+}
+
+// Enciende/apaga el puntito del tab Progreso según haya revisiones sin ver
+function updateProgressNotif(){
+  const dot=document.getElementById('progress-notif');
+  if(!dot)return;
+  const unseen=(revisionsCache||[]).some(r=>r.seen_by_client===false||r.seen_by_client==null);
+  dot.style.display=unseen?'block':'none';
+}
+
+// Marca todas las revisiones como vistas por el cliente
+async function markRevisionsSeen(){
+  const unseen=(revisionsCache||[]).filter(r=>r.seen_by_client===false||r.seen_by_client==null);
+  if(!unseen.length)return;
+  unseen.forEach(r=>{r.seen_by_client=true;});
+  updateProgressNotif();
+  try{
+    await sb.from('progress_photos').update({seen_by_client:true}).in('id',unseen.map(r=>r.id));
+  }catch(e){console.warn('markRevisionsSeen:',e);}
 }
 
 // URL firmada (1h) para una foto del bucket privado
