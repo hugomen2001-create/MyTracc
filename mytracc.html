@@ -616,6 +616,11 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
   <div id="cheats-panel-body" style="height:100%"></div>
 </div>
 
+<div class="evol-panel" id="checkin-panel">
+  <button onclick="closeCheckin()" style="position:absolute;top:calc(16px + env(safe-area-inset-top));left:16px;z-index:20;width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.06)">←</button>
+  <div id="checkin-panel-body" style="height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+</div>
+
 <div class="timer-overlay" id="timer-overlay" onclick="closeTimerOutside(event)">
   <div class="timer-box">
     <div style="width:40px;height:4px;background:#e0e0dc;border-radius:2px;margin:0 auto 18px"></div>
@@ -821,6 +826,37 @@ function getWeekStart(){
   const diff=d.getDate()-(day===0?6:day-1);
   const mon=new Date(d.setDate(diff));
   return mon.toISOString().slice(0,10);
+}
+
+// ─── CHECK-IN SEMANAL ───
+let currentCheckin=null;     // fila weekly_checkins de la semana actual (o null)
+let checkinDraft=null;       // borrador mientras se rellena {sleep,energy,hunger,plan,notes}
+
+// ¿Toca mostrar el banner del check-in? (sábado o domingo, si no se ha enviado)
+function checkinDue(){
+  const dow=new Date().getDay();           // 0=dom, 6=sáb
+  const inWindow=(dow===6||dow===0);
+  const done=currentCheckin&&currentCheckin.submitted_at;
+  return inWindow && !done;
+}
+
+// Banner en Inicio que invita a rellenar el check-in
+function checkinBannerHtml(){
+  if(!checkinDue())return '';
+  return '<div onclick="openCheckin()" style="margin:0 16px 12px;background:linear-gradient(135deg,#111 0%,#1a2e1a 100%);border-radius:20px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;">'+
+    '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.15) 0%,transparent 70%);pointer-events:none;"></div>'+
+    '<div style="display:flex;align-items:center;gap:12px;position:relative;">'+
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(22,163,74,.2);border:1.5px solid rgba(22,163,74,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;">📋</div>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'+
+          '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-.1px;">Check-in de la semana</div>'+
+          '<div style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;"></div>'+
+        '</div>'+
+        '<div style="font-size:12px;color:rgba(255,255,255,.65);line-height:1.45;">¿Cómo te ha ido? '+(coachData?.name?coachData.name.split(' ')[0]:'Tu entrenador')+' lo verá. 30 segundos.</div>'+
+      '</div>'+
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'+
+    '</div>'+
+  '</div>';
 }
 
 // Mantener compatibilidad con funciones que llaman saveData
@@ -1510,6 +1546,8 @@ function renderHome(){
       '</div>'+
       // Plan card
       planCard+
+      // Check-in semanal (sáb/dom)
+      checkinBannerHtml()+
       // Week strip
       '<div style="padding:0 16px;margin-bottom:12px;display:flex;gap:5px;">'+weekStrip+'</div>'+
       // Metric cards 2x2
@@ -4379,6 +4417,121 @@ function closeCheats(){
   document.getElementById('cheats-panel').classList.remove('open');
 }
 
+// ─── CHECK-IN SEMANAL: panel + formulario ───
+function openCheckin(){
+  // Inicializa el borrador con lo ya enviado (si lo hubiera) o valores neutros
+  const a=(currentCheckin&&currentCheckin.answers)||{};
+  checkinDraft={
+    sleep:a.sleep||3, energy:a.energy||3, hunger:a.hunger||3,
+    plan:a.plan||null, notes:(currentCheckin&&currentCheckin.notes)||''
+  };
+  const body=document.getElementById('checkin-panel-body');
+  if(body)body.innerHTML=renderCheckinForm();
+  document.getElementById('checkin-panel').classList.add('open');
+}
+function closeCheckin(){
+  document.getElementById('checkin-panel').classList.remove('open');
+}
+
+function renderCheckinForm(){
+  const d=checkinDraft||{sleep:3,energy:3,hunger:3,plan:null,notes:''};
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const ws=getWeekStart();const wp=ws.split('-');
+  const wsLabel=parseInt(wp[2],10)+' '+(meses[parseInt(wp[1],10)-1]||'');
+
+  // Fila de valoración 1-5 con barras tocables
+  const rating=(key,label,icon,color)=>{
+    const val=d[key]||0;
+    let bars='';
+    for(let n=1;n<=5;n++){
+      bars+='<div onclick="setCheckinVal(\''+key+'\','+n+')" style="flex:1;height:14px;border-radius:5px;cursor:pointer;background:'+(n<=val?color:'#eaeae6')+';transition:background .12s;"></div>';
+    }
+    return '<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px 16px;">'+
+      '<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;">'+
+        '<span style="font-size:17px;">'+icon+'</span>'+
+        '<span style="font-size:13.5px;font-weight:700;color:#111;">'+label+'</span>'+
+        '<span style="margin-left:auto;font-size:13px;font-weight:700;color:#999;">'+(val||'—')+' / 5</span>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px;">'+bars+'</div>'+
+    '</div>';
+  };
+
+  // Segmentos "¿cumpliste el plan?"
+  const planOpts=[['medias','A medias'],['casi','Casi todo'],['todo','Todo']];
+  const planSeg='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px 16px;">'+
+    '<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;">'+
+      '<span style="font-size:17px;">✅</span>'+
+      '<span style="font-size:13.5px;font-weight:700;color:#111;">¿Cumpliste el plan?</span>'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;">'+
+      planOpts.map(([v,lbl])=>{
+        const on=d.plan===v;
+        return '<button onclick="setCheckinVal(\'plan\',\''+v+'\')" style="flex:1;padding:9px 0;border-radius:11px;border:1.5px solid '+(on?'#16a34a':'#eaeae6')+';background:'+(on?'#f0fdf4':'#fff')+';color:'+(on?'#16a34a':'#999')+';font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">'+lbl+'</button>';
+      }).join('')+
+    '</div>'+
+  '</div>';
+
+  // Notas libres
+  const notes='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px 16px;">'+
+    '<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;">'+
+      '<span style="font-size:17px;">💬</span>'+
+      '<span style="font-size:13.5px;font-weight:700;color:#111;">Algo que contarle a '+(coachData?.name?coachData.name.split(' ')[0]:'tu entrenador')+'</span>'+
+    '</div>'+
+    '<textarea id="checkin-notes" oninput="checkinDraft.notes=this.value" placeholder="Opcional: molestias, dudas, cómo te sientes…" style="width:100%;border:1.5px solid #eaeae6;border-radius:11px;background:#fafaf8;padding:11px 12px;font-size:13px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:64px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\'">'+escHtml(d.notes||'')+'</textarea>'+
+  '</div>';
+
+  const already=currentCheckin&&currentCheckin.submitted_at;
+
+  return '<div style="padding:calc(64px + env(safe-area-inset-top)) 16px 40px;">'+
+    '<div style="margin-bottom:18px;">'+
+      '<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#bbb;margin-bottom:4px;">Check-in · semana del '+wsLabel+'</div>'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:26px;color:#111;letter-spacing:-.5px;line-height:1.1;">¿Cómo ha ido tu <em style="color:#16a34a;font-style:italic;">semana?</em></div>'+
+      (already?'<div style="font-size:12.5px;color:#16a34a;font-weight:600;margin-top:5px;">✓ Ya lo enviaste · puedes editarlo</div>':'<div style="font-size:12.5px;color:#999;margin-top:5px;">Rápido y sincero. Ayuda a ajustar tu plan.</div>')+
+    '</div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px;">'+
+      rating('sleep','Sueño y descanso','🌙','#7c3aed')+
+      rating('energy','Energía / fatiga','⚡','#d97706')+
+      rating('hunger','Hambre / apetito','🍽️','#111')+
+      planSeg+
+      notes+
+      '<button onclick="submitCheckin()" style="width:100%;padding:14px;font-size:15px;font-weight:700;background:#16a34a;color:#fff;border:none;border-radius:15px;cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:0 4px 16px rgba(22,163,74,.25);margin-top:4px;">'+(already?'Guardar cambios':'Enviar check-in')+'</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function setCheckinVal(key,val){
+  if(!checkinDraft)checkinDraft={sleep:3,energy:3,hunger:3,plan:null,notes:''};
+  checkinDraft[key]=val;
+  const body=document.getElementById('checkin-panel-body');
+  if(body)body.innerHTML=renderCheckinForm();
+}
+
+async function submitCheckin(){
+  if(!clientData||!checkinDraft)return;
+  if(!checkinDraft.plan){showToast('Marca si cumpliste el plan','red');return;}
+  if(navigator.onLine===false){showToast('Sin conexión','red','No se ha podido enviar');return;}
+  const ws=getWeekStart();
+  const payload={
+    answers:{sleep:checkinDraft.sleep,energy:checkinDraft.energy,hunger:checkinDraft.hunger,plan:checkinDraft.plan},
+    notes:(checkinDraft.notes||'').trim()||null,
+    submitted_at:new Date().toISOString(),
+    seen_by_coach:false
+  };
+  try{
+    let res;
+    if(currentCheckin&&currentCheckin.id){
+      res=await sb.from('weekly_checkins').update(payload).eq('id',currentCheckin.id).select().single();
+    } else {
+      res=await sb.from('weekly_checkins').insert(Object.assign({client_id:clientData.id,week_start:ws},payload)).select().single();
+    }
+    if(res.error){console.error('submitCheckin:',res.error);showToast('No se pudo enviar','red','Inténtalo de nuevo');return;}
+    if(res.data)currentCheckin=res.data;
+  }catch(e){console.warn('submitCheckin:',e);showToast('No se pudo enviar','red','Inténtalo de nuevo');return;}
+  closeCheckin();
+  showToast('Check-in enviado ✓','green','Gracias, lo tendrá en cuenta');
+  render();
+}
+
 function openVideoModal(exName, videoUrl){
   // Extraer video ID de cualquier formato YouTube (watch, shorts, youtu.be, embed)
   function getYouTubeId(url){
@@ -5535,6 +5688,13 @@ async function initApp(user){
 
     // Cargar revisiones (fotos + notas que sube el entrenador) para la pestaña Progreso
     await loadRevisions(client.id);
+
+    // Cargar el check-in de la semana actual (si existe)
+    try{
+      const {data:ci}=await sb.from('weekly_checkins')
+        .select('*').eq('client_id',client.id).eq('week_start',getWeekStart()).maybeSingle();
+      currentCheckin=ci||null;
+    }catch(e){console.warn('load checkin:',e);currentCheckin=null;}
 
     // Cargar historial COMPLETO de peso (para la gráfica de Progreso con filtros 3m/6m/histórico)
     try{
