@@ -6031,6 +6031,46 @@ async function initApp(user){
     // y archivamos el anterior antes de cargar los datos del cliente.
     await promoteScheduledPlans(client.id);
 
+    await reloadClientData(client);
+
+    // Actualizar UI
+    const now=new Date();
+    const nombre=client.name?.split(' ')[0]||'Hugo';
+    const headerTitle=document.querySelector('.header-title');
+    if(headerTitle)headerTitle.textContent=nombre;
+    document.getElementById('greeting').textContent=greeting();
+    document.getElementById('header-date').textContent=DAYS[todayIdx()]+', '+String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
+    state.trainSession=SESSIONS.includes(getWeekPlan(weekKey())[todayIdx()])?getWeekPlan(weekKey())[todayIdx()]:SESSIONS[0];
+
+    showScreen('app');
+    document.getElementById('main-content').style.overflow='hidden';
+    const hdr=document.querySelector('.header');
+    if(hdr)hdr.classList.add('hidden');
+    render();
+    setTimeout(calcAdherence,100);
+    setupRealtime();
+    // Update avatar initial
+    const initial2=(client.name||'').charAt(0).toUpperCase()||'H';
+    document.querySelectorAll('#app-avatar').forEach(el=>{el.textContent=initial2;});
+    updateNotifBadge();
+
+  }catch(e){
+    console.error('initApp error:',e);
+    // Si la excepción ocurrió antes de verificar el cliente, cerramos sesión por seguridad
+    if(!clientData){
+      await sb.auth.signOut().catch(()=>{});
+      appUser=null;
+      showScreen('auth');
+      setTimeout(()=>showAuthErr('No se pudo iniciar la app. Inténtalo de nuevo.'),50);
+    } else {
+      // Sesión válida pero falló la carga de datos (red, etc.): mantener sesión y
+      // ofrecer reintento en la pantalla de carga (sin obligar a iniciar sesión otra vez)
+      showLoadError(navigator.onLine===false);
+    }
+  }
+}
+
+async function reloadClientData(client){
     // Cargar datos en paralelo
     const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
@@ -6152,42 +6192,6 @@ async function initApp(user){
 
     // Reconstruir gymData compatible
     rebuildGymData();
-
-    // Actualizar UI
-    const now=new Date();
-    const nombre=client.name?.split(' ')[0]||'Hugo';
-    const headerTitle=document.querySelector('.header-title');
-    if(headerTitle)headerTitle.textContent=nombre;
-    document.getElementById('greeting').textContent=greeting();
-    document.getElementById('header-date').textContent=DAYS[todayIdx()]+', '+String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
-    state.trainSession=SESSIONS.includes(getWeekPlan(weekKey())[todayIdx()])?getWeekPlan(weekKey())[todayIdx()]:SESSIONS[0];
-
-    showScreen('app');
-    document.getElementById('main-content').style.overflow='hidden';
-    const hdr=document.querySelector('.header');
-    if(hdr)hdr.classList.add('hidden');
-    render();
-    setTimeout(calcAdherence,100);
-    setupRealtime();
-    // Update avatar initial
-    const initial2=(client.name||'').charAt(0).toUpperCase()||'H';
-    document.querySelectorAll('#app-avatar').forEach(el=>{el.textContent=initial2;});
-    updateNotifBadge();
-
-  }catch(e){
-    console.error('initApp error:',e);
-    // Si la excepción ocurrió antes de verificar el cliente, cerramos sesión por seguridad
-    if(!clientData){
-      await sb.auth.signOut().catch(()=>{});
-      appUser=null;
-      showScreen('auth');
-      setTimeout(()=>showAuthErr('No se pudo iniciar la app. Inténtalo de nuevo.'),50);
-    } else {
-      // Sesión válida pero falló la carga de datos (red, etc.): mantener sesión y
-      // ofrecer reintento en la pantalla de carga (sin obligar a iniciar sesión otra vez)
-      showLoadError(navigator.onLine===false);
-    }
-  }
 }
 
 function getWeekStart90(){
@@ -6196,19 +6200,37 @@ function getWeekStart90(){
 
 function setupRealtime(){
   if(!clientData)return;
-  sb.channel('mytracc_'+clientData.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'daily_metrics',filter:'client_id=eq.'+clientData.id},()=>{
-      sb.from('daily_metrics').select('*').eq('client_id',clientData.id).gte('date',getWeekStart90()).then(({data})=>{
-        metricsCache={};(data||[]).forEach(m=>{metricsCache[m.date]=m;});
-        rebuildGymData();if(state.tab==='home')render();
-      });
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'training_plans',filter:'client_id=eq.'+clientData.id},async()=>{
-      const {data}=await sb.from('training_plans').select('*').eq('client_id',clientData.id).eq('is_active',true).maybeSingle();
-      activePlan=data||null;rebuildGymData();render();
-      showToast('Plan actualizado por tu entrenador ✓');
-    })
-    .subscribe();
+  const cid=clientData.id, f='client_id=eq.'+cid;
+  let ch=sb.channel('mytracc_'+cid);
+  // Tablas con columna client_id (filtradas)
+  ['daily_metrics','training_plans','workout_sessions','cheats','mesocycles','nutrition_plans','weekly_nutrition','split_adjustments','week_reorders','progress_photos','revision_notes','client_plans','client_billing','weekly_checkins','appointments'].forEach(t=>{
+    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t,filter:f},()=>{
+      if(t==='training_plans') showToast('Plan actualizado por tu entrenador ✓');
+      scheduleLiveRefresh();
+    });
+  });
+  // Tablas sin client_id directo (se limitan por RLS)
+  ['nutrition_options','revision_photos','workout_sets','exercise_notes'].forEach(t=>{
+    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>scheduleLiveRefresh());
+  });
+  // Cambios en mi propia ficha (objetivo, pasos objetivo, revisión cada…)
+  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'clients',filter:'id=eq.'+cid},()=>scheduleLiveRefresh());
+  ch.subscribe();
+}
+function scheduleLiveRefresh(){ clearTimeout(window._lrT); window._lrT=setTimeout(liveRefresh,500); }
+async function liveRefresh(){
+  if(!clientData)return;
+  // No refrescar mientras el cliente está metiendo un dato (numpad a pantalla completa)
+  if(document.getElementById('metric-screen')) return;
+  try{
+    const {data:c}=await sb.from('clients').select('*').eq('id',clientData.id).maybeSingle();
+    if(c) clientData=c;
+    await reloadClientData(clientData);
+    if(typeof loadNotifications==='function'){ try{ await loadNotifications(); }catch(e){} }
+    render();
+    if(document.getElementById('mical-screen')) renderMiCalendario();
+    if(typeof updateNotifBadge==='function') updateNotifBadge();
+  }catch(e){ console.warn('liveRefresh:',e); }
 }
 
 // ── AUTH FUNCTIONS ──
