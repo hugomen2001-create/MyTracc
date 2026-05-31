@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MyTracc">
@@ -418,7 +418,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
       <svg width="10" height="17" viewBox="0 0 10 17" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1L1 8.5L9 16"/></svg>
     </div>
     <div id="auth-title" style="font-family:'DM Serif Display',serif;font-size:36px;line-height:1.05;color:#111;letter-spacing:-.5px;margin-bottom:8px">Bienvenido<br>de vuelta.</div>
-    <div id="auth-sub" style="font-size:14px;color:#999;line-height:1.5;margin-bottom:28px">Elige cómo quieres entrar a tu cuenta.</div>
+    <div id="auth-sub" style="font-size:14px;color:#999;line-height:1.5;margin-bottom:28px">Entra con tu email para acceder a tu plan.</div>
   </div>
   <div style="padding:0 28px 40px;flex:1;display:flex;flex-direction:column">
     <div id="auth-err" style="display:none;background:#fff1f0;border:1px solid #fca5a5;border-radius:12px;padding:12px 16px;align-items:flex-start;gap:10px;margin-bottom:16px">
@@ -426,21 +426,8 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
       <div id="auth-err-text" style="font-size:13px;color:#b91c1c;line-height:1.4"></div>
     </div>
     <div id="auth-social">
-      <button onclick="showToast('Próximamente','blue','Apple Sign In no disponible aún')" style="width:100%;height:52px;border-radius:14px;background:#fff;border:1.5px solid #e8e8e4;display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:500;color:#111;cursor:pointer;font-family:var(--font);margin-bottom:10px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#111"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.39.07 2.35.74 3.17.8 1.21-.24 2.36-.94 3.66-.84 1.55.12 2.72.7 3.47 1.82-3.2 1.92-2.44 5.99.54 7.13-.65 1.52-1.5 3.01-2.84 3.97zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
-        Continuar con Apple
-      </button>
-      <button onclick="showToast('Próximamente','blue','Google Sign In no disponible aún')" style="width:100%;height:52px;border-radius:14px;background:#fff;border:1.5px solid #e8e8e4;display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:500;color:#111;cursor:pointer;font-family:var(--font);margin-bottom:10px">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Continuar con Google
-      </button>
-      <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px">
-        <div style="flex:1;height:1px;background:#e8e8e4"></div>
-        <span style="font-size:12px;color:#bbb">o</span>
-        <div style="flex:1;height:1px;background:#e8e8e4"></div>
-      </div>
-      <button onclick="showEmailForm()" style="width:100%;height:52px;border-radius:14px;background:#fff;border:1.5px solid #e8e8e4;display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:500;color:#111;cursor:pointer;font-family:var(--font)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+      <button onclick="showEmailForm()" style="width:100%;height:54px;border-radius:15px;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:600;cursor:pointer;font-family:var(--font);border:none;box-shadow:0 4px 16px rgba(22,163,74,.25)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
         Continuar con email
       </button>
     </div>
@@ -459,7 +446,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
             <div id="remember-box" style="width:20px;height:20px;border-radius:6px;background:#e8e8e4;border:1.5px solid #e0e0dc;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"></div>
             <span style="font-size:13.5px;color:#555;font-weight:500">Recordar sesión</span>
           </div>
-          <span style="font-size:13.5px;color:#16a34a;font-weight:600;cursor:pointer">¿Olvidaste?</span>
+          <span onclick="doForgotPassword()" style="font-size:13.5px;color:#16a34a;font-weight:600;cursor:pointer">¿Olvidaste?</span>
         </div>
         <button onclick="doSignIn()" id="btn-signin" style="width:100%;height:54px;border-radius:15px;background:#16a34a;color:#fff;font-size:16px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);box-shadow:0 4px 16px rgba(22,163,74,.25);margin-bottom:14px">Iniciar sesión</button>
         <div style="text-align:center;font-size:13.5px;color:#aaa">¿No tienes cuenta? <strong style="color:#111;font-weight:600;cursor:pointer" onclick="showSignup()">Crear cuenta</strong></div>
@@ -3175,6 +3162,7 @@ async function saveExNote(exO,value){
   const di=state.selectedDay,wk=weekKey();
   const exName=(window.exNames&&window.exNames[exO])||'Ejercicio '+exO;
   if(!clientData||!sb)return;
+  if(navigator.onLine===false){ showToast('Sin conexión','red','La nota no se ha guardado. Reconéctate e inténtalo.'); return; }
   const date=getDayDate(di);
   const weekPlan=getWeekPlan(wk);
   const dd=getDayData(wk,di);
@@ -3184,7 +3172,7 @@ async function saveExNote(exO,value){
   if(!sess){
     if(!val)return; // no crear sesión por una nota vacía
     const {data,error}=await sb.from('workout_sessions').insert({client_id:clientData.id,session_date:date,session_type:sessionType,completed:false}).select('*').single();
-    if(error){console.error('session insert (note):',error);return;}
+    if(error){console.error('session insert (note):',error);showToast('No se pudo guardar la nota','red','Inténtalo de nuevo');return;}
     if(data){sess=data;sess.workout_sets=[];sessionsCache[date]=sess;}
   }
   if(!sess)return;
@@ -3193,13 +3181,15 @@ async function saveExNote(exO,value){
   if(val)exerciseNotesCache[sess.id][exName]=val;
   else delete exerciseNotesCache[sess.id][exName];
   try{
+    let res;
     if(val){
-      await sb.from('exercise_notes')
+      res=await sb.from('exercise_notes')
         .upsert({session_id:sess.id,exercise_name:exName,note:val},{onConflict:'session_id,exercise_name'});
     } else {
-      await sb.from('exercise_notes').delete().eq('session_id',sess.id).eq('exercise_name',exName);
+      res=await sb.from('exercise_notes').delete().eq('session_id',sess.id).eq('exercise_name',exName);
     }
-  }catch(e){console.warn('saveExNote:',e);}
+    if(res&&res.error){console.error('saveExNote db:',res.error);showToast('No se pudo guardar la nota','red','Inténtalo de nuevo');}
+  }catch(e){console.warn('saveExNote:',e);showToast('No se pudo guardar la nota','red','Inténtalo de nuevo');}
 }
 
 async function openExHistory(exName,session,exOrder){
@@ -5506,7 +5496,7 @@ function showScreen_auth(mode){
   showScreen('auth');
   const isSI=mode!=='signup';
   document.getElementById('auth-title').innerHTML=isSI?'Bienvenido<br>de vuelta.':'Empezamos.';
-  document.getElementById('auth-sub').textContent=isSI?'Elige cómo quieres entrar.':'Elige cómo crear tu cuenta.';
+  document.getElementById('auth-sub').textContent=isSI?'Entra con tu email para acceder a tu plan.':'Crea tu cuenta de MyTracc.';
   document.getElementById('auth-social').style.display='block';
   document.getElementById('auth-email-form').style.display='none';
   document.getElementById('form-signin').style.display=isSI?'block':'none';
@@ -5528,7 +5518,7 @@ function showAuthMode(mode){
   if(mode==='signin')setTimeout(initRememberCheckbox,50);
   const isSI=mode==='signin';
   document.getElementById('auth-title').innerHTML=isSI?'Bienvenido<br>de vuelta.':'Empezamos.';
-  document.getElementById('auth-sub').textContent=isSI?'Elige cómo quieres entrar.':'Elige cómo crear tu cuenta.';
+  document.getElementById('auth-sub').textContent=isSI?'Entra con tu email para acceder a tu plan.':'Crea tu cuenta de MyTracc.';
   document.getElementById('auth-social').style.display='block';
   document.getElementById('auth-email-form').style.display='none';
   document.getElementById('form-signin').style.display=isSI?'block':'none';
@@ -5598,6 +5588,19 @@ async function doSignIn(){
   // cliente, vuelve a la pantalla auth y el botón debe estar utilizable.
   btn.textContent='Iniciar sesión';btn.disabled=false;
   await initApp(data.user);
+}
+
+// Recuperar contraseña: envía un enlace al email escrito en el formulario
+async function doForgotPassword(){
+  const email=(document.getElementById('signin-email')||{}).value;
+  const mail=(email||'').trim();
+  if(!mail){showAuthErr('Escribe tu email arriba y vuelve a pulsar "¿Olvidaste?"');return;}
+  if(navigator.onLine===false){showAuthErr('Sin conexión. Inténtalo de nuevo cuando vuelvas a tener internet.');return;}
+  try{
+    const {error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:window.location.origin+window.location.pathname});
+    if(error){showAuthErr(error.message);return;}
+    showToast('Email enviado ✓','green','Revisa tu correo para restablecer la contraseña');
+  }catch(e){console.warn('forgot password:',e);showAuthErr('No se pudo enviar el email. Inténtalo de nuevo.');}
 }
 async function doSignUp(){
   const name=document.getElementById('signup-name').value.trim();
