@@ -693,7 +693,7 @@ function recomputeSessions(){
 
 const DAILY_MACROS={kcal:1960,carbs:245,fat:40,protein:155};
 let openMeals={};
-let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null};
+let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null,swapMeal:null};
 let timerInt=null,timerSec=0,timerTotal=0;
 // ── ESTADO SUPABASE ──
 let appUser=null, clientData=null, coachData=null;
@@ -1813,6 +1813,73 @@ function renderDiet(){
   '</div>';
 }
 
+// ─── COMIDAS INTERCAMBIABLES (estilo Harbiz, con sentido por macros) ───
+const DIET_MEAL_ORDER=['desayuno','comida','merienda','cena'];
+
+// Suma de macros de una comida concreta
+function mealTotals(meal){
+  let kcal=0,ch=0,g=0,p=0;
+  ((meal&&meal.items)||[]).forEach(i=>{kcal+=(i.kcal||0);ch+=(i.ch||0);g+=(i.g||0);p+=(i.p||0);});
+  return {kcal,ch,g,p};
+}
+
+// Lee las sustituciones por comida guardadas para un día concreto
+function mealOverridesForDay(dayKey){
+  let mo=weeklyNutrition&&weeklyNutrition.meal_overrides;
+  if(typeof mo==='string'){try{mo=JSON.parse(mo);}catch(e){mo=null;}}
+  return (mo&&mo[dayKey])||{};
+}
+
+// Devuelve, para cada comida del día, la versión efectiva (base + tus cambios)
+// y de qué opción procede. Null si el día no tiene opción base asignada.
+function effectiveDayMeals(dayKey){
+  const baseNum=weeklyNutrition?.[dayKey+'_option']||null;
+  const baseOpt=baseNum?nutritionOptions.find(o=>o.option_number===baseNum):null;
+  if(!baseOpt||!baseOpt.meals)return null;
+  const ov=mealOverridesForDay(dayKey);
+  const out={};
+  Object.keys(baseOpt.meals).forEach(realKey=>{
+    const mealName=realKey.toLowerCase();
+    let fromOpt=baseNum, meal=baseOpt.meals[realKey];
+    const ovNum=ov[mealName];
+    if(ovNum&&ovNum!==baseNum){
+      const alt=nutritionOptions.find(o=>o.option_number===ovNum);
+      if(alt&&alt.meals){
+        const altKey=Object.keys(alt.meals).find(k=>k.toLowerCase()===mealName);
+        if(altKey&&(alt.meals[altKey].items||[]).length){meal=alt.meals[altKey];fromOpt=ovNum;}
+      }
+    }
+    out[mealName]={meal,fromOption:fromOpt};
+  });
+  return out;
+}
+
+// Totales del día a partir de las comidas efectivas
+function effectiveDayTotals(dayKey){
+  const eff=effectiveDayMeals(dayKey);
+  if(!eff)return {kcal:0,ch:0,g:0,p:0};
+  let kcal=0,ch=0,g=0,p=0;
+  Object.values(eff).forEach(e=>{const t=mealTotals(e.meal);kcal+=t.kcal;ch+=t.ch;g+=t.g;p+=t.p;});
+  return {kcal,ch,g,p};
+}
+
+// Variantes disponibles de una comida (la versión de esa comida en cada opción)
+function mealVariants(mealName){
+  const out=[];
+  nutritionOptions.forEach(o=>{
+    const meals=o.meals||{};
+    const key=Object.keys(meals).find(k=>k.toLowerCase()===mealName);
+    if(key&&(meals[key].items||[]).length){out.push({optNum:o.option_number,meal:meals[key],totals:mealTotals(meals[key])});}
+  });
+  return out;
+}
+
+// ¿La variante mantiene el día en plan respecto a la comida que sustituye?
+function variantFits(altTot,curTot){
+  const kTol=Math.max(60,curTot.kcal*0.10);
+  return Math.abs(altTot.kcal-curTot.kcal)<=kTol && Math.abs(altTot.p-curTot.p)<=12;
+}
+
 function renderDietSupabase(sel, dayName, isToday){
   const dayKey=DAY_KEYS[sel];
   const selectedOptNum=weeklyNutrition?.[dayKey+'_option']||null;
@@ -1833,7 +1900,10 @@ function renderDietSupabase(sel, dayName, isToday){
     Object.values(opt.meals).forEach(m=>(m.items||[]).forEach(i=>{kcal+=(i.kcal||0);ch+=(i.ch||0);g+=(i.g||0);p+=(i.p||0);}));
     return {kcal,ch,g,p};
   };
-  const todayTot=totalsFor(selectedOpt);
+  // Totales del día con las comidas efectivas (base + tus cambios)
+  const baseTot=totalsFor(selectedOpt);           // objetivo del día (lo que asignó Pol)
+  const todayTot=effectiveDayTotals(dayKey);      // lo que comes realmente tras tus cambios
+  const dayInPlan=Math.abs(todayTot.kcal-baseTot.kcal)<=Math.max(80,baseTot.kcal*0.06) && Math.abs(todayTot.p-baseTot.p)<=15;
 
   // ¿El plan se actualizó después de la última configuración del cliente?
   const planUpdatedAt=activeNutritionPlan?.updated_at||activeNutritionPlan?.created_at||null;
@@ -1876,13 +1946,14 @@ function renderDietSupabase(sel, dayName, isToday){
     '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:'+(needsConfig?'#bbb':'rgba(22,163,74,.6)')+';margin-bottom:8px;">'+(needsConfig?'Plan actual':'Objetivo diario')+'</div>'+
     '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+(selectedOpt?Math.round(todayTot.kcal).toLocaleString('es-ES'):'—')+'</div>'+
-      '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">kcal</div>'+
+      '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">'+(selectedOpt?'/ '+Math.round(baseTot.kcal).toLocaleString('es-ES')+' kcal':'kcal')+'</div>'+
+      (selectedOpt?'<div style="margin-left:auto;margin-bottom:12px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;color:'+(dayInPlan?'#16a34a':'#d97706')+';">'+(dayInPlan?'✓ En plan':'⚠ Ajustado')+'</div>':'')+
     '</div>'+
     (selectedOpt?
       '<div style="display:flex;gap:7px;">'+
-        [['CH',todayTot.ch],['G',todayTot.g],['P',todayTot.p]].map(([m,v])=>
+        [['CH',todayTot.ch,baseTot.ch],['G',todayTot.g,baseTot.g],['P',todayTot.p,baseTot.p]].map(([m,v,t])=>
           '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
-            '<div style="font-size:15px;font-weight:700;color:#111;">'+Math.round(v)+'g</div>'+
+            '<div style="font-size:15px;font-weight:700;color:#111;">'+Math.round(v)+'<span style="font-size:10px;color:#bbb;font-weight:600;">/'+Math.round(t)+'g</span></div>'+
             '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(22,163,74,.6);margin-top:2px;">'+m+'</div>'+
           '</div>'
         ).join('')+
@@ -1896,9 +1967,8 @@ function renderDietSupabase(sel, dayName, isToday){
       const isSel=i===sel;
       const dk=DAY_KEYS[i];
       const optNum=weeklyNutrition?.[dk+'_option'];
-      const opt=optNum?nutritionOptions.find(o=>o.option_number===optNum):null;
-      const dayTot=opt?totalsFor(opt):null;
-      const kcalLabel=dayTot?Math.round(dayTot.kcal):'—';
+      const dayTot=optNum?effectiveDayTotals(dk):null;
+      const kcalLabel=(dayTot&&dayTot.kcal)?Math.round(dayTot.kcal):'—';
       return '<div onclick="selectDietDay('+i+')" style="flex:1;background:'+(isSel?'#111':'#fff')+';border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:3px;border:1.5px solid '+(isSel?'#111':'#eaeae6')+';cursor:pointer;transition:all .15s;">'+
         '<div style="font-size:10px;font-weight:700;color:'+(isSel?'#fff':dayTot?'#111':'#ccc')+';text-transform:uppercase;letter-spacing:.04em;">'+d+'</div>'+
         '<div style="font-size:8px;font-weight:700;color:'+(isSel?'rgba(255,255,255,.5)':dayTot?'#bbb':'#ddd')+';">'+kcalLabel+'</div>'+
@@ -1906,21 +1976,26 @@ function renderDietSupabase(sel, dayName, isToday){
     }).join('')+
   '</div>';
 
-  // Comidas de la opción asignada al día actual
+  // Comidas efectivas del día (base + tus cambios), con opción de intercambiar
   let mealsHtml='';
   if(selectedOpt){
-    const meals=selectedOpt.meals||{};
+    const eff=effectiveDayMeals(dayKey)||{};
     mealsHtml='<div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;">';
-    ['desayuno','comida','merienda','cena'].forEach(mealName=>{
-      const realKey=Object.keys(meals).find(k=>k.toLowerCase()===mealName);
-      const m=realKey?meals[realKey]:null;
+    DIET_MEAL_ORDER.forEach(mealName=>{
+      const e=eff[mealName];
+      const m=e?e.meal:null;
       if(!m||!m.items?.length)return;
+      const fromOpt=e.fromOption;
+      const curTot=mealTotals(m);
       const mc=mealColors[mealName]||{bg:'#f5f5f3',border:'#eaeae6',emoji:'🍽️'};
-      const mKcal=m.items.reduce((a,i)=>a+(i.kcal||0),0);
+      const mKcal=curTot.kcal;
       const isOpen=openMeals[mealName];
       const preview=m.items.slice(0,3).map(i=>i.name).join(' · ');
+      const variants=mealVariants(mealName);
+      const canSwap=variants.length>=2;
+      const isSwapping=state.swapMeal===mealName;
       mealsHtml+=
-        '<div style="background:#fff;border-radius:18px;border:1.5px solid '+(isOpen?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isOpen?'0 2px 12px rgba(0,0,0,.1)':'0 1px 3px rgba(0,0,0,.04)')+';">'+
+        '<div style="background:#fff;border-radius:18px;border:1.5px solid '+(isOpen||isSwapping?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isOpen||isSwapping?'0 2px 12px rgba(0,0,0,.1)':'0 1px 3px rgba(0,0,0,.04)')+';">'+
           '<div onclick="toggleDietMeal(\''+mealName+'\')" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;'+(isOpen?'border-bottom:1px solid #f0f0ee;':'')+'">'+
             '<div style="width:38px;height:38px;border-radius:12px;background:'+mc.bg+';border:1.5px solid '+mc.border+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;">'+mc.emoji+'</div>'+
             '<div style="flex:1;min-width:0;">'+
@@ -1959,6 +2034,38 @@ function renderDietSupabase(sel, dayName, isToday){
                   }).join('')+
                 '</div>'+
                 '<div style="font-size:14px;font-weight:800;color:#111;">'+Math.round(mKcal)+' kcal</div>'+
+              '</div>'+
+            '</div>':'')+
+          // Barra de cambio de comida (solo si hay 2+ variantes)
+          (canSwap?
+            '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f5f5f3;">'+
+              '<span style="font-size:12px;color:#999;">Opción '+fromOpt+' de tu '+mealName+'</span>'+
+              '<button onclick="toggleMealSwap(\''+mealName+'\')" style="display:flex;align-items:center;gap:5px;background:'+(isSwapping?'#111':'#f5f5f3')+';border:none;color:'+(isSwapping?'#fff':'#666')+';border-radius:9px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">'+
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l-3 3 3 3"/><path d="M4 13h11a4 4 0 004-4V7"/><path d="M17 14l3-3-3-3"/><path d="M20 11H9a4 4 0 00-4 4v2"/></svg>'+
+                (isSwapping?'Cerrar':'Cambiar '+mealName)+
+              '</button>'+
+            '</div>':'')+
+          // Selector de variantes
+          (canSwap&&isSwapping?
+            '<div style="padding:4px 16px 16px;">'+
+              '<div style="font-size:11.5px;color:#bbb;margin-bottom:10px;line-height:1.5;">Las marcadas mantienen tu día en plan.</div>'+
+              '<div style="display:flex;flex-direction:column;gap:8px;">'+
+                variants.map(v=>{
+                  const isCur=v.optNum===fromOpt;
+                  const fits=variantFits(v.totals,curTot);
+                  const delta=Math.round(v.totals.kcal-curTot.kcal);
+                  const vname=v.meal.items.slice(0,3).map(i=>i.name).join(', ');
+                  let badge;
+                  if(isCur)badge='<span style="font-size:11px;font-weight:700;background:#eef2ff;color:#4f46e5;padding:2px 9px;border-radius:8px;">Actual</span>';
+                  else if(fits)badge='<span style="font-size:11px;font-weight:700;color:#16a34a;">✓ Cuadra</span>';
+                  else badge='<span style="font-size:11px;font-weight:700;color:#d97706;">⚠ '+(delta>0?'+':'')+delta+' kcal</span>';
+                  return '<div onclick="selectMealVariant(\''+mealName+'\','+v.optNum+')" style="border:'+(isCur?'2px solid rgba(79,70,229,.5)':'1.5px solid #eaeae6')+';border-radius:13px;padding:11px 13px;cursor:pointer;background:#fff;">'+
+                    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">'+
+                      '<span style="font-size:13px;font-weight:700;color:#111;line-height:1.25;">'+escHtml(vname)+'</span>'+badge+
+                    '</div>'+
+                    '<div style="font-size:11.5px;color:#999;">'+Math.round(v.totals.kcal)+' kcal · '+Math.round(v.totals.ch)+' CH · '+Math.round(v.totals.g)+' G · '+Math.round(v.totals.p)+' P</div>'+
+                  '</div>';
+                }).join('')+
               '</div>'+
             '</div>':'')+
         '</div>';
@@ -2015,6 +2122,35 @@ async function selectDayOption(optNum){
   openMeals={};
   showToast('Guardado ✓','green');
   render();
+}
+
+// Abre/cierra el selector de variantes de una comida
+function toggleMealSwap(mealName){
+  state.swapMeal=(state.swapMeal===mealName)?null:mealName;
+  render();
+}
+
+// Cambia una comida del día por la versión de otra opción y lo guarda
+async function selectMealVariant(mealName, optNum){
+  if(!clientData||!weeklyNutrition)return;
+  const dayKey=DAY_KEYS[state.dietDay];
+  const baseNum=weeklyNutrition[dayKey+'_option']||null;
+  // Construye el objeto de overrides actualizado
+  let mo=weeklyNutrition.meal_overrides;
+  if(typeof mo==='string'){try{mo=JSON.parse(mo);}catch(e){mo={};}}
+  if(!mo||typeof mo!=='object')mo={};
+  if(!mo[dayKey])mo[dayKey]={};
+  if(optNum===baseNum){ delete mo[dayKey][mealName]; if(!Object.keys(mo[dayKey]).length)delete mo[dayKey]; }
+  else { mo[dayKey][mealName]=optNum; }
+  // Optimista: aplica en memoria y cierra el selector
+  weeklyNutrition.meal_overrides=mo;
+  state.swapMeal=null;
+  render();
+  if(navigator.onLine===false){showToast('Sin conexión','red','El cambio no se ha guardado');return;}
+  try{
+    const {error}=await sb.from('weekly_nutrition').update({meal_overrides:mo}).eq('id',weeklyNutrition.id);
+    if(error){console.error('meal_overrides update:',error);showToast('No se pudo guardar el cambio','red','Inténtalo de nuevo');}
+  }catch(e){console.warn('selectMealVariant:',e);showToast('No se pudo guardar el cambio','red','Inténtalo de nuevo');}
 }
 
 // ─── FLUJO DE CONFIGURAR DIETA (banner + modal pantalla completa) ───
@@ -3531,7 +3667,7 @@ async function doDeleteSession(di){
 }
 
 // ── FUNCIONES GLOBALES FALTANTES ──
-function selectDietDay(i){state.dietDay=i;openMeals={};render();}
+function selectDietDay(i){state.dietDay=i;openMeals={};state.swapMeal=null;render();}
 
 function toggleDietMeal(mealName){
   // Guardar scroll antes de re-renderizar
