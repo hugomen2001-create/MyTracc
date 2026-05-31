@@ -836,6 +836,54 @@ function getWeekStart(){
 let currentCheckin=null;     // fila weekly_checkins de la semana actual (o null)
 let checkinDraft=null;       // borrador mientras se rellena {sleep,energy,hunger,plan,notes}
 
+// ─── PAGOS (Fase 1): cuota del cliente + helpers (mismos cálculos que Tracc) ───
+let currentBilling=null;     // fila client_billing del cliente (o null)
+function billingAddMonths(dateStr, months){
+  const d = new Date(String(dateStr).slice(0,10)+'T00:00:00');
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth()+months);
+  const dim = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  d.setDate(Math.min(day, dim));
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return d.getFullYear()+'-'+mm+'-'+dd;
+}
+function billingSchedule(b){
+  if(!b) return [];
+  const n = Math.max(1, parseInt(b.num_payments)||1);
+  const iv = parseInt(b.interval_months); const interval = isNaN(iv)?1:iv;
+  const paid = Array.isArray(b.paid_numbers)?b.paid_numbers:[];
+  const out = [];
+  for(let i=1;i<=n;i++){
+    const due = interval>0 ? billingAddMonths(b.first_charge, interval*(i-1)) : String(b.first_charge).slice(0,10);
+    out.push({n:i, due:due, amount:Number(b.amount)||0, paid:paid.indexOf(i)>=0});
+  }
+  return out;
+}
+function billingStatus(b){
+  if(!b || !b.amount || !b.first_charge) return {state:'none', next:null, paidCount:0, total:0, sch:[]};
+  const sch = billingSchedule(b);
+  const paidCount = sch.filter(p=>p.paid).length;
+  if(paidCount>=sch.length) return {state:'saldado', next:null, paidCount:paidCount, total:sch.length, sch:sch};
+  const next = sch.find(p=>!p.paid);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = new Date(next.due+'T00:00:00');
+  const grace = new Date(due); grace.setDate(grace.getDate()+5);
+  let state = 'al_dia';
+  if(today > grace) state = 'vencido';
+  else if(today >= due) state = 'pendiente';
+  return {state:state, next:next, paidCount:paidCount, total:sch.length, sch:sch};
+}
+function billingFmtDate(s){
+  try{ return new Date(String(s).slice(0,10)+'T00:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'}); }
+  catch(e){ return s; }
+}
+function payBilling(){
+  if(currentBilling && currentBilling.pay_link){ window.open(currentBilling.pay_link,'_blank'); }
+  else { showToast('Sin enlace de pago','red','Tu entrenador aún no ha puesto el enlace'); }
+}
+
 // ¿Toca mostrar el banner del check-in? (sábado o domingo, si no se ha enviado)
 function checkinDue(){
   const dow=new Date().getDay();           // 0=dom, 6=sáb
@@ -866,6 +914,30 @@ function checkinBannerHtml(){
 // Mantener compatibilidad con funciones que llaman saveData
 function saveData(d){} // no-op, guardamos en Supabase directamente
 function loadData(){return gymData;}
+
+// Aviso en Inicio cuando hay un pago pendiente o vencido
+function billingBannerHtml(){
+  const st=billingStatus(currentBilling);
+  if(st.state!=='pendiente' && st.state!=='vencido')return '';
+  const venc=st.state==='vencido';
+  const next=st.next;
+  const bg=venc?'linear-gradient(135deg,#7f1d1d 0%,#991b1b 100%)':'linear-gradient(135deg,#111 0%,#2a2410 100%)';
+  const accent=venc?'#fca5a5':'#fcd34d';
+  const txt=venc?'Cuota vencida':'Cuota pendiente';
+  return '<div onclick="state.tab=\'home\';openPerfilPanel&&openPerfilPanel()" style="margin:0 16px 12px;background:'+bg+';border-radius:20px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;">'+
+    '<div style="display:flex;align-items:center;gap:12px;position:relative;">'+
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;">💳</div>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'+
+          '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-.1px;">'+txt+'</div>'+
+          '<div style="width:7px;height:7px;border-radius:50%;background:'+accent+';flex-shrink:0;"></div>'+
+        '</div>'+
+        '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.45;">'+(next?('Pago '+next.n+' de '+st.total+' · '+Number(next.amount).toLocaleString('es-ES')+' € · vence '+billingFmtDate(next.due)):'')+'</div>'+
+      '</div>'+
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'+
+    '</div>'+
+  '</div>';
+}
 
 // ── GUARDAR MÉTRICA DIARIA EN SUPABASE ──
 async function saveDayField(di, field, value){
@@ -1538,6 +1610,8 @@ function renderHome(){
       planCard+
       // Check-in semanal (sáb/dom)
       checkinBannerHtml()+
+      // Aviso de cuota pendiente/vencida
+      billingBannerHtml()+
       // Week strip
       '<div style="padding:0 16px;margin-bottom:12px;display:flex;gap:5px;">'+weekStrip+'</div>'+
       // Metric cards 2x2
@@ -5902,6 +5976,13 @@ async function initApp(user){
       currentCheckin=ci||null;
     }catch(e){console.warn('load checkin:',e);currentCheckin=null;}
 
+    // Cargar la cuota del cliente (si la hay)
+    try{
+      const {data:bl}=await sb.from('client_billing')
+        .select('*').eq('client_id',client.id).maybeSingle();
+      currentBilling=bl||null;
+    }catch(e){console.warn('load billing:',e);currentBilling=null;}
+
     // Cargar historial COMPLETO de peso (para la gráfica de Progreso con filtros 3m/6m/histórico)
     try{
       const {data:wh}=await sb.from('daily_metrics')
@@ -6321,6 +6402,9 @@ async function renderPerfil(){
     <div class="perfil-data-row"><div class="perfil-data-label">Revisión cada</div><div class="perfil-data-val">${clientData.revision_every_weeks||2} semanas</div></div>
   </div>
 
+  <!-- Cuota / pagos -->
+  ${clientBillingCardHtml()}
+
   <!-- Acciones -->
   ${coachPhone?`<button class="perfil-action-btn" onclick="openWhatsApp('${coachPhone}','${coachName}')">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -6339,6 +6423,62 @@ function openWhatsApp(phone,name){
   if(!phone){showToast('Sin número configurado');return;}
   const msg=encodeURIComponent('Hola '+name.split(' ')[0]+', soy tu cliente en MyTracc. ¿Tienes un momento?');
   window.open('https://wa.me/'+phone+'?text='+msg,'_blank');
+}
+
+// Tarjeta de cuota del cliente (3 estados: por pagar / al día / saldado)
+function clientBillingCardHtml(){
+  const b=currentBilling; if(!b) return '';
+  const st=billingStatus(b); if(st.state==='none') return '';
+  const planLbl='Tu plan · '+(b.num_payments>1?(b.num_payments+' pagos'):'pago único');
+  let bars=''; for(let i=1;i<=st.total;i++){const paid=st.sch[i-1].paid; bars+='<div style="flex:1;height:6px;border-radius:3px;background:'+(paid?'#16a34a':'#e6e6e0')+'"></div>';}
+  const barsRow='<div style="display:flex;gap:5px;margin:14px 0;">'+bars+'</div>';
+
+  if(st.state==='saldado'){
+    return '<div class="perfil-data-card" style="text-align:center">'+
+      '<div style="width:46px;height:46px;border-radius:50%;background:#f0fdf4;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#16a34a;font-size:24px;">✓</div>'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111;margin-bottom:4px;">Plan completado</div>'+
+      '<div style="font-size:12.5px;color:#999;">Has pagado los '+st.total+' pagos · '+(Number(b.amount)*b.num_payments).toLocaleString('es-ES')+' € en total</div>'+
+    '</div>';
+  }
+
+  const due=st.next?st.next.due:null;
+  const amount=st.next?st.next.amount:b.amount;
+  const isPay=(st.state==='pendiente'||st.state==='vencido');
+  const stMap={al_dia:['Al día','#16a34a','#f0fdf4','rgba(22,163,74,.3)'], pendiente:['Pendiente','#92400e','#fef3c7','#fcd34d'], vencido:['Vencido','#b91c1c','#fee2e2','#fca5a5']};
+  const stI=stMap[st.state]||stMap.al_dia;
+
+  // Lista de pagos (solo en al día)
+  let payList='';
+  if(st.state==='al_dia'){
+    payList='<div style="border-top:1px solid #eaeae6;margin-top:4px;padding-top:11px;">'+
+      '<div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;">Pagos del plan</div>'+
+      st.sch.map(p=>'<div style="display:flex;justify-content:space-between;font-size:12.5px;color:'+(p.paid?'#666':'#999')+';padding:3px 0;"><span>Pago '+p.n+' · '+billingFmtDate(p.due)+'</span><span style="'+(p.paid?'color:#16a34a;font-weight:700':'')+'">'+Number(p.amount).toLocaleString('es-ES')+' € · '+(p.paid?'pagado':'pendiente')+'</span></div>').join('')+
+    '</div>';
+  }
+
+  const payBtn=isPay
+    ? (b.pay_link
+        ? '<button onclick="payBilling()" style="width:100%;padding:13px;font-size:14px;font-weight:700;background:#635bff;color:#fff;border:none;border-radius:13px;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;">💳 Pagar con Stripe</button>'
+        : '<div style="font-size:12px;color:#999;text-align:center;padding:10px;background:#f5f5f3;border-radius:11px;">Tu entrenador aún no ha puesto el enlace de pago.</div>')
+    : '';
+
+  const subline=isPay
+    ? '📅 Pago '+st.next.n+' de '+st.total+' · vence '+billingFmtDate(due)
+    : (st.paidCount>0?('Pago '+st.paidCount+' hecho · próximo el '+billingFmtDate(due)):('Próximo pago el '+billingFmtDate(due)));
+
+  return '<div class="perfil-data-card">'+
+    '<div style="display:flex;align-items:flex-start;justify-content:space-between;">'+
+      '<div>'+
+        '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">'+planLbl+'</div>'+
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:32px;color:#111;line-height:1;">'+Number(amount).toLocaleString('es-ES')+' €</div>'+
+      '</div>'+
+      '<span style="font-size:12px;font-weight:700;color:'+stI[1]+';background:'+stI[2]+';border:1px solid '+stI[3]+';padding:5px 11px;border-radius:9px;flex-shrink:0;">'+stI[0]+'</span>'+
+    '</div>'+
+    '<div style="font-size:12.5px;color:#888;font-weight:600;margin-top:10px;">'+subline+'</div>'+
+    barsRow+
+    payBtn+
+    payList+
+  '</div>';
 }
 
 // ── CARGAR PLAN DESDE SUPABASE ──
