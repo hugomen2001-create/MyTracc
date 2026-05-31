@@ -723,6 +723,8 @@ let metricsCache={}; // date -> daily_metrics row
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
 let revisionsCache=[]; // array de progress_photos (revisiones), cada una con ._photos
+// Estado de la comparativa "Antes vs ahora" (interactiva): revisión y foto elegidas por lado
+let avaA=null, avaB=null, avaIdxA=0, avaIdxB=0;
 let weightHistory=[]; // [{date,w}] historial COMPLETO de peso para la gráfica de Progreso
 let exerciseNotesCache={}; // session_id -> { exercise_name: note }
 let notifBadge=0;
@@ -2886,6 +2888,68 @@ function setWeightRange(r){
   render();
 }
 
+// ── Tarjeta "Antes vs ahora" interactiva ──
+// Eliges la semana de cada lado (selector) y la foto exacta (miniaturas).
+function avaRev(id){ return (revisionsCache||[]).find(r=>r.id===id); }
+
+function avaCardInner(){
+  const revs=revisionsCache||[];
+  const withPhotos=revs.filter(r=>(r._photos||[]).length>0);
+  if(withPhotos.length<2) return '';
+  const ids=withPhotos.map(r=>r.id);
+  // Defaults / validación: A = más antigua, B = más reciente
+  if(!ids.includes(avaB)){ avaB=withPhotos[0].id; avaIdxB=0; }
+  if(!ids.includes(avaA)){ avaA=withPhotos[withPhotos.length-1].id; avaIdxA=0; }
+  const ra=avaRev(avaA), rb=avaRev(avaB);
+  const fa=(ra._photos||[]); if(avaIdxA>=fa.length) avaIdxA=0;
+  const fb=(rb._photos||[]); if(avaIdxB>=fb.length) avaIdxB=0;
+
+  const opt=(selId)=>withPhotos.map(r=>'<option value="'+r.id+'" '+(r.id===selId?'selected':'')+'>Semana '+(r.revision_week!=null?r.revision_week:'—')+(r.weight_kg!=null?(' · '+r.weight_kg+' kg'):'')+'</option>').join('');
+
+  // Variación de peso y semanas
+  let deltaHtml='';
+  if(ra&&rb&&ra.weight_kg!=null&&rb.weight_kg!=null){
+    const d=Number(rb.weight_kg)-Number(ra.weight_kg);
+    const sem=(ra.revision_week!=null&&rb.revision_week!=null)?Math.abs(rb.revision_week-ra.revision_week):null;
+    const txt=(d>0?'+':'')+(Math.round(d*10)/10)+' kg'+(sem!=null?(' en '+sem+' semana'+(sem!==1?'s':'')):'');
+    deltaHtml='<div style="display:flex;justify-content:center;margin-top:12px"><span style="font-size:12px;font-weight:700;color:#111;background:#f0f0ec;padding:6px 14px;border-radius:10px">'+txt+'</span></div>';
+  }
+
+  const sideCol=(side)=>{
+    const rev=side==='A'?ra:rb;
+    const idx=side==='A'?avaIdxA:avaIdxB;
+    const selId=side==='A'?avaA:avaB;
+    const tag=side==='A'?'Antes':'Ahora';
+    const fotos=rev._photos||[];
+    const sel=fotos[idx]||fotos[0]||{};
+    const thumbs=fotos.length>1
+      ? '<div style="display:flex;gap:5px;overflow-x:auto;margin-top:6px;scrollbar-width:none;padding-bottom:2px">'+
+          fotos.map((f,i)=>'<div onclick="avaSetPhoto(\''+side+'\','+i+')" style="width:34px;height:44px;border-radius:6px;overflow:hidden;flex-shrink:0;cursor:pointer;border:2px solid '+(i===idx?'#16a34a':'#eaeae6')+'"><img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>').join('')+
+        '</div>'
+      : '';
+    return '<div style="flex:1;min-width:0">'+
+      '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;text-align:center">'+tag+'</div>'+
+      '<select onchange="avaSetRev(\''+side+'\',this.value)" style="width:100%;font-size:11px;font-weight:700;color:#111;background:#f5f5f3;border:1.5px solid #eaeae6;border-radius:9px;padding:7px 8px;margin-bottom:8px;font-family:\'DM Sans\',sans-serif;outline:none;cursor:pointer">'+opt(selId)+'</select>'+
+      '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
+        '<img data-revphoto="'+escHtml(sel.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
+      '</div>'+
+      (sel.label?'<div style="font-size:9px;color:#888;font-weight:600;margin-top:4px;text-align:center;line-height:1.25;word-break:break-word">'+escHtml(sel.label)+'</div>':'')+
+      thumbs+
+    '</div>';
+  };
+
+  return '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Antes vs ahora</div>'+
+    '<div style="display:flex;gap:12px;align-items:flex-start">'+sideCol('A')+sideCol('B')+'</div>'+
+    deltaHtml;
+}
+
+function avaRefresh(){
+  const el=document.getElementById('ava-card');
+  if(el){ el.innerHTML=avaCardInner(); hydrateRevisionPhotos(); }
+}
+function avaSetRev(side,id){ if(side==='A'){avaA=id;avaIdxA=0;}else{avaB=id;avaIdxB=0;} avaRefresh(); }
+function avaSetPhoto(side,idx){ if(side==='A')avaIdxA=idx; else avaIdxB=idx; avaRefresh(); }
+
 function renderProgreso(){
   const revs=revisionsCache||[];
 
@@ -2953,6 +3017,19 @@ function renderProgreso(){
   // 0b) Vista de programa/bloque
   html+=programBlockHtml();
 
+  // 0c) Acceso a cheats (card arriba para que se vea y se use)
+  const nCheats=(gymData.cheats||[]).length;
+  html+='<div onclick="openCheats()" style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:11px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+    '<span style="display:flex;align-items:center;gap:11px">'+
+      '<span style="font-size:20px">🍔</span>'+
+      '<span style="text-align:left">'+
+        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
+        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
+      '</span>'+
+    '</span>'+
+    '<span style="font-size:20px;color:#ccc">›</span>'+
+  '</div>';
+
   // 1) Tarjeta resumen
   const arrow = delta==null?'':(delta<0?'↓':delta>0?'↑':'→');
   const deltaTxt = delta==null?'—':(arrow+' '+Math.abs(delta)+' kg');
@@ -3004,95 +3081,14 @@ function renderProgreso(){
     '</div>'+
   '</div>';
 
-  // 3) Antes vs ahora (si hay 2+ revisiones con foto)
+  // 3) Antes vs ahora (si hay 2+ revisiones con foto) — interactivo
   const withPhotos=revs.filter(r=>(r._photos||[]).length>0);
   if(withPhotos.length>=2){
-    const ahora=withPhotos[0];
-    const antes=withPhotos[withPhotos.length-1];
-    const colHtml=(rev,tag)=>{
-      const f=(rev._photos||[])[0]||{};
-      return '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;text-align:center">'+tag+'</div>'+
-        '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
-          '<img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
-        '</div>'+
-        '<div style="font-size:10px;color:#888;font-weight:700;margin-top:5px;text-align:center">Semana '+(rev.revision_week!=null?rev.revision_week:'—')+'</div>'+
-      '</div>';
-    };
-    html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
-      '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Antes vs ahora</div>'+
-      '<div style="display:flex;gap:10px;align-items:flex-start">'+colHtml(antes,'Antes')+
-        '<div style="align-self:center;font-size:18px;color:#d4d4cc;padding-top:14px">→</div>'+
-        colHtml(ahora,'Ahora')+'</div>'+
-    '</div>';
-  }
-
-  // Revisiones
-  html+='<div style="font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px">Revisiones</div>';
-
-  if(!revs.length){
-    html+='<div style="background:#fff;border:1.5px dashed #e0e0d8;border-radius:18px;padding:34px 22px;text-align:center">'+
-      '<div style="font-size:36px;margin-bottom:12px">📸</div>'+
-      '<div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px">Aún no hay revisiones</div>'+
-      '<div style="font-size:12.5px;color:#bbb;line-height:1.55">Cuando hagas una revisión con tu entrenador,<br>aquí verás tus fotos, tu peso y sus notas.</div>'+
-    '</div>';
-  } else {
-    revs.forEach(rev=>{
-      const fecha=fmtRevDate(rev.revision_date);
-      const fotos=rev._photos||[];
-      const hasNote=!!(rev.notes&&String(rev.notes).trim());
-      html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">';
-      // Cabecera de la revisión
-      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:'+((hasNote||fotos.length)?'13px':'0')+'">'+
-        '<div>'+
-          '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111;letter-spacing:-.3px;line-height:1">Semana '+(rev.revision_week!=null?rev.revision_week:'—')+'</div>'+
-          (fecha?'<div style="font-size:11px;color:#bbb;font-weight:600;margin-top:3px">'+fecha+'</div>':'')+
-        '</div>'+
-        (rev.weight_kg!=null?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:7px 13px;text-align:center;flex-shrink:0">'+
-          '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#16a34a;line-height:1">'+rev.weight_kg+'</div>'+
-          '<div style="font-size:8px;font-weight:800;color:rgba(22,163,74,.7);text-transform:uppercase;letter-spacing:.06em;margin-top:1px">kg</div>'+
-        '</div>':'')+
-      '</div>';
-      // Nota del entrenador
-      if(hasNote){
-        html+='<div style="background:#f5f5f3;border-radius:12px;padding:11px 13px;margin-bottom:'+(fotos.length?'13px':'0')+'">'+
-          '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">📋 Nota de tu entrenador</div>'+
-          '<div style="font-size:13px;color:#444;line-height:1.5;white-space:pre-wrap">'+escHtml(rev.notes)+'</div>'+
-        '</div>';
-      }
-      // Fotos
-      if(fotos.length){
-        html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
-        fotos.forEach(f=>{
-          html+='<div>'+
-            '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
-              '<img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
-            '</div>'+
-            (f.label?'<div style="font-size:9px;color:#888;font-weight:600;margin-top:4px;text-align:center;line-height:1.25;word-break:break-word">'+escHtml(f.label)+'</div>':'')+
-          '</div>';
-        });
-        html+='</div>';
-      } else {
-        html+='<div style="font-size:12px;color:#ccc;text-align:center;padding:6px 0">Sin fotos en esta revisión todavía</div>';
-      }
-      html+='</div>';
-    });
+    html+='<div id="ava-card" style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+avaCardInner()+'</div>';
   }
 
   html+='</div>'; // cierra el contenido con padding lateral
 
-  // Botón de banda a banda → abre los cheats a pantalla completa
-  const nCheats=(gymData.cheats||[]).length;
-  html+='<button onclick="openCheats()" style="width:100%;border:none;border-top:1.5px solid #eaeae6;background:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-top:8px">'+
-    '<span style="display:flex;align-items:center;gap:11px">'+
-      '<span style="font-size:18px">🍔</span>'+
-      '<span style="text-align:left">'+
-        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
-        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
-      '</span>'+
-    '</span>'+
-    '<span style="font-size:20px;color:#ccc">›</span>'+
-  '</button>';
 
   html+='</div>'; // cierra wrapper exterior
   return html;
