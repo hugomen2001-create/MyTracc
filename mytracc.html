@@ -2043,7 +2043,7 @@ function renderDiet(){
       '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:4px">Plan nutricional</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1;margin-bottom:20px">Tu <em style="color:#16a34a;">dieta.</em></div>'+
       '<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:20px;padding:28px 24px;text-align:center;margin-top:8px">'+
-        '<div style="font-size:40px;margin-bottom:14px">🥗</div>'+
+        '<div style="width:56px;height:56px;border-radius:16px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#16a34a"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10"/><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7"/><path d="m13 12 4-4"/></svg></div>'+
         '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;margin-bottom:8px">Aún sin dieta.</div>'+
         '<div style="font-size:14px;color:#666;line-height:1.6;margin-bottom:20px">Tu entrenador todavía no te ha asignado un plan de nutrición. En cuanto lo haga, aparecerá aquí.</div>'+
         '<div style="font-size:12px;color:rgba(22,163,74,.7);font-weight:600;line-height:1.5">Mientras tanto, céntrate en tus entrenamientos.</div>'+
@@ -2054,6 +2054,15 @@ function renderDiet(){
 
 // ─── COMIDAS INTERCAMBIABLES (estilo Harbiz, con sentido por macros) ───
 const DIET_MEAL_ORDER=['desayuno','comida','merienda','cena'];
+
+// Estilo + icono de línea por comida (compartido por la pantalla y el modal de config).
+const MEAL_ICON={
+  desayuno:{bg:'#fffbeb',border:'rgba(234,179,8,.2)',color:'#d97706',svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>'},
+  comida:{bg:'#f0fdf4',border:'rgba(22,163,74,.18)',color:'#16a34a',svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>'},
+  merienda:{bg:'#fff7f0',border:'rgba(251,146,60,.18)',color:'#f97316',svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/></svg>'},
+  cena:{bg:'#f3f0ff',border:'rgba(124,58,237,.15)',color:'#7c3aed',svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>'},
+};
+function mealStyle(name){return MEAL_ICON[name]||{bg:'#f5f5f3',border:'#eaeae6',color:'#888',svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>'};}
 
 // Suma de macros de una comida concreta
 function mealTotals(meal){
@@ -2125,13 +2134,6 @@ function renderDietSupabase(sel, dayName, isToday){
   const selectedOpt=selectedOptNum?nutritionOptions.find(o=>o.option_number===selectedOptNum):null;
   const SHORT2=['L','M','X','J','V','S','D'];
 
-  const mealColors={
-    desayuno:{bg:'#fffbeb',border:'rgba(234,179,8,.2)',emoji:'☕'},
-    comida:   {bg:'#f0fdf4',border:'rgba(22,163,74,.18)',emoji:'🍗'},
-    merienda: {bg:'#fff7f0',border:'rgba(251,146,60,.18)',emoji:'🍎'},
-    cena:     {bg:'#f3f0ff',border:'rgba(124,58,237,.15)',emoji:'🌙'},
-  };
-
   // Calcular kcal totales de la opción asignada al día actual
   const totalsFor=(opt)=>{
     if(!opt||!opt.meals)return {kcal:0,ch:0,g:0,p:0};
@@ -2186,16 +2188,18 @@ function renderDietSupabase(sel, dayName, isToday){
     '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+(selectedOpt?Math.round(todayTot.kcal).toLocaleString('es-ES'):'—')+'</div>'+
       '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">'+(selectedOpt?'/ '+Math.round(baseTot.kcal).toLocaleString('es-ES')+' kcal':'kcal')+'</div>'+
-      (selectedOpt?'<div style="margin-left:auto;margin-bottom:12px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;color:'+(dayInPlan?'#16a34a':'#d97706')+';">'+(dayInPlan?'✓ En plan':'⚠ Ajustado')+'</div>':'')+
+      (selectedOpt?'<div style="margin-left:auto;margin-bottom:12px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;color:'+(dayInPlan?'#16a34a':'#d97706')+';">'+(dayInPlan?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> En plan':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Ajustado')+'</div>':'')+
     '</div>'+
     (selectedOpt?
       '<div style="display:flex;gap:7px;">'+
-        [['CH',todayTot.ch,baseTot.ch],['G',todayTot.g,baseTot.g],['P',todayTot.p,baseTot.p]].map(([m,v,t])=>
-          '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
+        [['CH',todayTot.ch,baseTot.ch],['G',todayTot.g,baseTot.g],['P',todayTot.p,baseTot.p]].map(([m,v,t])=>{
+          const pct=t?Math.min(100,Math.round(v/t*100)):0;
+          return '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
             '<div style="font-size:15px;font-weight:700;color:#111;">'+Math.round(v)+'<span style="font-size:10px;color:#bbb;font-weight:600;">/'+Math.round(t)+'g</span></div>'+
-            '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(22,163,74,.6);margin-top:2px;">'+m+'</div>'+
-          '</div>'
-        ).join('')+
+            '<div style="height:3px;background:#dcfce7;border-radius:2px;margin:6px 0 4px;overflow:hidden;"><div style="height:3px;width:'+pct+'%;background:#16a34a;border-radius:2px;"></div></div>'+
+            '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(22,163,74,.6);">'+m+'</div>'+
+          '</div>';
+        }).join('')+
       '</div>'
     : '<div style="font-size:12px;color:#bbb;">Configura el plan para ver los datos</div>')+
   '</div>';
@@ -2226,7 +2230,7 @@ function renderDietSupabase(sel, dayName, isToday){
       if(!m||!m.items?.length)return;
       const fromOpt=e.fromOption;
       const curTot=mealTotals(m);
-      const mc=mealColors[mealName]||{bg:'#f5f5f3',border:'#eaeae6',emoji:'🍽️'};
+      const mc=mealStyle(mealName);
       const mKcal=curTot.kcal;
       const isOpen=openMeals[mealName];
       const preview=m.items.slice(0,3).map(i=>i.name).join(' · ');
@@ -2236,7 +2240,7 @@ function renderDietSupabase(sel, dayName, isToday){
       mealsHtml+=
         '<div style="background:#fff;border-radius:18px;border:1.5px solid '+(isOpen||isSwapping?'#111':'#eaeae6')+';overflow:hidden;box-shadow:'+(isOpen||isSwapping?'0 2px 12px rgba(0,0,0,.1)':'0 1px 3px rgba(0,0,0,.04)')+';">'+
           '<div onclick="toggleDietMeal(\''+mealName+'\')" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;'+(isOpen?'border-bottom:1px solid #f0f0ee;':'')+'">'+
-            '<div style="width:38px;height:38px;border-radius:12px;background:'+mc.bg+';border:1.5px solid '+mc.border+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;">'+mc.emoji+'</div>'+
+            '<div style="width:38px;height:38px;border-radius:12px;background:'+mc.bg+';border:1.5px solid '+mc.border+';display:flex;align-items:center;justify-content:center;flex-shrink:0;color:'+mc.color+';">'+mc.svg+'</div>'+
             '<div style="flex:1;min-width:0;">'+
               '<div style="font-size:13.5px;font-weight:700;color:#111;margin-bottom:2px;text-transform:capitalize;">'+mealName+'</div>'+
               '<div style="font-size:12px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(isOpen?m.items.length+' alimentos':preview)+'</div>'+
@@ -2296,8 +2300,8 @@ function renderDietSupabase(sel, dayName, isToday){
                   const vname=v.meal.items.slice(0,3).map(i=>i.name).join(', ');
                   let badge;
                   if(isCur)badge='<span style="font-size:11px;font-weight:700;background:#eef2ff;color:#4f46e5;padding:2px 9px;border-radius:8px;">Actual</span>';
-                  else if(fits)badge='<span style="font-size:11px;font-weight:700;color:#16a34a;">✓ Cuadra</span>';
-                  else badge='<span style="font-size:11px;font-weight:700;color:#d97706;">⚠ '+(delta>0?'+':'')+delta+' kcal</span>';
+                  else if(fits)badge='<span style="font-size:11px;font-weight:700;color:#16a34a;display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Cuadra</span>';
+                  else badge='<span style="font-size:11px;font-weight:700;color:#d97706;display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'+(delta>0?'+':'')+delta+' kcal</span>';
                   return '<div onclick="selectMealVariant(\''+mealName+'\','+v.optNum+')" style="border:'+(isCur?'2px solid rgba(79,70,229,.5)':'1.5px solid #eaeae6')+';border-radius:13px;padding:11px 13px;cursor:pointer;background:#fff;">'+
                     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">'+
                       '<span style="font-size:13px;font-weight:700;color:#111;line-height:1.25;">'+escHtml(vname)+'</span>'+badge+
@@ -2312,7 +2316,7 @@ function renderDietSupabase(sel, dayName, isToday){
     mealsHtml+='</div>';
   } else {
     mealsHtml='<div style="margin:0 16px;background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:32px 20px;text-align:center;">'+
-      '<div style="font-size:32px;margin-bottom:10px;">🍽️</div>'+
+      '<div style="width:48px;height:48px;border-radius:14px;background:#f0f0ec;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#ccc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg></div>'+
       '<div style="font-size:14px;font-weight:600;color:#111;margin-bottom:4px;">Día sin asignar</div>'+
       '<div style="font-size:12px;color:#bbb;margin-bottom:14px;">Aún no has elegido qué opción comer este día</div>'+
       '<button onclick="openNutritionConfig()" style="height:36px;padding:0 16px;border-radius:10px;background:#111;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Configurar semana</button>'+
@@ -2359,7 +2363,7 @@ async function selectDayOption(optNum){
   }
   nutritionPlanChanged=false; // ya reconfiguró
   openMeals={};
-  showToast('Guardado ✓','green');
+  showToast('Guardado','green');
   render();
 }
 
@@ -2503,12 +2507,6 @@ function ncRenderStep1(){
 
 function ncRenderDayOptions(dayIdx, selectedOptNum){
   const expandedOpt=nutritionConfig.expandedOpt;
-  const mealColors={
-    desayuno:{bg:'#fffbeb',border:'rgba(234,179,8,.2)',emoji:'☕'},
-    comida:{bg:'#f0fdf4',border:'rgba(22,163,74,.18)',emoji:'🍗'},
-    merienda:{bg:'#fff7f0',border:'rgba(251,146,60,.18)',emoji:'🍎'},
-    cena:{bg:'#f3f0ff',border:'rgba(124,58,237,.15)',emoji:'🌙'},
-  };
 
   return '<div style="padding:12px 14px;background:#fafaf8;">'+
     '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Elige una opción</div>'+
@@ -2545,12 +2543,12 @@ function ncRenderDayOptions(dayIdx, selectedOptNum){
                 const realKey=Object.keys(meals).find(k=>k.toLowerCase()===mn);
                 const m=realKey?meals[realKey]:null;
                 if(!m||!m.items?.length)return '';
-                const mc=mealColors[mn]||{bg:'#f5f5f3',border:'#eaeae6',emoji:'🍽️'};
+                const mc=mealStyle(mn);
                 const mKcal=m.items.reduce((a,i)=>a+(i.kcal||0),0);
                 return '<div style="margin-top:10px;background:'+mc.bg+';border:1.5px solid '+mc.border+';border-radius:10px;padding:10px 12px;">'+
                   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'+
                     '<div style="display:flex;align-items:center;gap:6px;">'+
-                      '<span style="font-size:14px;">'+mc.emoji+'</span>'+
+                      '<span style="color:'+mc.color+';display:inline-flex;width:15px;height:15px">'+mc.svg.replace('width="18" height="18"','width="15" height="15"').replace('width="17" height="17"','width="15" height="15"')+'</span>'+
                       '<span style="font-size:12px;font-weight:700;color:#111;text-transform:capitalize;">'+mn+'</span>'+
                     '</div>'+
                     '<span style="font-size:11px;font-weight:700;color:#888;">'+Math.round(mKcal)+' kcal</span>'+
@@ -2668,8 +2666,8 @@ function ncRenderStep2(){
   '</div>';
 
   const footer='<div style="padding:14px 16px 18px;background:#fff;border-top:1.5px solid #eaeae6;flex-shrink:0;display:flex;gap:8px;">'+
-    '<button onclick="ncGoToStep1()" style="flex:1;height:48px;border-radius:14px;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;font-size:14px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">'+
-      '← Volver'+
+    '<button onclick="ncGoToStep1()" style="flex:1;height:48px;border-radius:14px;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;font-size:14px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;">'+
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Volver'+
     '</button>'+
     '<button onclick="ncSaveAll()" style="flex:2;height:48px;border-radius:14px;background:#16a34a;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">'+
       'Guardar plan'+
@@ -2718,7 +2716,7 @@ async function ncSaveAll(){
     showToast('No se pudo guardar. Inténtalo de nuevo.','err');
     return;
   }
-  showToast('Plan semanal guardado ✓','ok');
+  showToast('Plan semanal guardado','green');
   closeNutritionConfig();
 }
 
