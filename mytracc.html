@@ -592,7 +592,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
   <div class="notif-inner" id="notif-inner" onclick="event.stopPropagation()">
     <div style="padding:14px 16px 12px;border-bottom:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:32px;height:32px;border-radius:9px;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:16px">🔔</div>
+        <div style="width:32px;height:32px;border-radius:9px;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
         <div style="font-family:'DM Serif Display',serif;font-size:18px;font-weight:400;color:#111">Notificaciones</div>
       </div>
       <button onclick="closeNotifPanel()" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:18px;padding:2px 6px;line-height:1">✕</button>
@@ -1623,9 +1623,9 @@ function renderHome(){
   // Racha (semanas seguidas) DENTRO de la tarjeta, arriba a la derecha. Solo semana actual.
   let streakBadge='';
   if(isCurrentWeek){
-    const _st=trainingStreakWeeks();
+    const _st=trainingStreakSessions();
     if(_st>=1){
-      streakBadge='<div title="'+_st+' semanas entrenando seguidas" style="display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 8px;border-radius:20px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);">'+
+      streakBadge='<div title="'+_st+' entrenos seguidos sin fallar" style="display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 8px;border-radius:20px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);">'+
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>'+
         '<span style="font-family:\'DM Serif Display\',serif;font-size:14px;color:#fff;line-height:1;">'+_st+'</span>'+
       '</div>';
@@ -1663,11 +1663,18 @@ function renderHome(){
   '</div>';
 
   // Metric cards nuevo diseño
+  const METRIC_ICON_PATHS={
+    walk:'<path d="M13 4m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 21l3 -4"/><path d="M16 21l-2 -4l-3 -3l1 -6"/><path d="M6 12l2 -3l4 -1l3 3l3 1"/>',
+    moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+    scale:'<path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M19 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M5 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/>',
+    bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'
+  };
+  const metricIconSvg=(key,color)=>'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="'+color+'" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(METRIC_ICON_PATHS[key]||'')+'</svg>';
   const metricCard=(label,value,unit,color,barW,onclick,icon)=>
     '<div onclick="'+onclick+'" style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">'+label+'</div>'+
-        (icon?'<span style="font-size:15px;line-height:1;">'+icon+'</span>':'')+
+        (icon?metricIconSvg(icon,color):'')+
       '</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:'+(value?color:'#ddd')+';letter-spacing:-1px;line-height:1;flex:1;display:flex;align-items:center;">'+
         (value?(value+(unit?' <span style="font-size:13px;font-weight:400;color:#bbb;font-family:var(--font)">'+unit+'</span>':'')):'—')+
@@ -1680,7 +1687,7 @@ function renderHome(){
   const actCard='<div onclick="openActivityHistoryModal(event)" style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
       '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">Actividad</div>'+
-      '<span style="font-size:15px;line-height:1;">⚡</span>'+
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'+
     '</div>'+
     (dd.entreno
       ? '<div style="font-size:17px;font-weight:700;color:#2563eb;line-height:1.25;flex:1;display:flex;align-items:center;">'+escHtml(dd.entreno)+'</div>'
@@ -1714,9 +1721,9 @@ function renderHome(){
       '<div style="padding:0 16px;margin-bottom:12px;display:flex;gap:5px;">'+weekStrip+'</div>'+
       // Metric cards 2x2
       '<div style="padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">'+
-        metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','👟')+
-        metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','😴')+
-        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','⚖️')+
+        metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','walk')+
+        metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','moon')+
+        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','scale')+
         actCard+
       '</div>'+
       // Export btn
@@ -2859,6 +2866,28 @@ function trainingStreakWeeks(){
     const k=monday(cursor.toISOString().slice(0,10));
     if(weeks.has(k)){streak++;cursor.setDate(cursor.getDate()-7);}
     else break;
+  }
+  return streak;
+}
+
+// Entrenos seguidos cumpliendo SIN fallar: cuenta hacia atrás desde hoy los días
+// de entreno planificados que se completaron. El descanso no rompe la racha.
+// El día de hoy, si aún está pendiente, tampoco rompe (no ha "fallado" todavía).
+function trainingStreakSessions(){
+  const done=function(dateStr){const s=sessionsCache&&sessionsCache[dateStr];return !!(s&&(s.completed||(s.workout_sets&&s.workout_sets.length)));};
+  let streak=0;
+  const today=new Date();today.setHours(12,0,0,0);
+  for(let back=0;back<120;back++){
+    const d=new Date(today);d.setDate(today.getDate()-back);
+    const dateStr=d.toISOString().slice(0,10);
+    const wk=getWeekKey(d), di=getDayIdx(d);
+    const plan=getWeekPlan(wk)||[];
+    const ov=(gymData[wk]&&gymData[wk][di]&&gymData[wk][di].sessionOverride)||null;
+    const active=ov||plan[di];
+    const isTrain=SESSIONS.includes(active);
+    if(done(dateStr)){ streak++; continue; }      // entreno hecho → cuenta
+    if(isTrain){ if(back===0) continue; break; }   // entreno planificado no hecho: hoy=pendiente; pasado=rompe
+    // día de descanso sin entreno → no afecta
   }
   return streak;
 }
@@ -5146,7 +5175,11 @@ function openMetricModal(event,metric){
   const TITLES={pasos:'Pasos de hoy',sueno:'Sueño',peso:'Peso de hoy'};
   const UNITS={pasos:'pasos',sueno:'h',peso:'kg'};
   const COLORS={pasos:'#16a34a',sueno:'#7c3aed',peso:'#111'};
-  const ICONS={pasos:'👟',sueno:'😴',peso:'⚖️'};
+  const ICONS={
+    pasos:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 21l3 -4"/><path d="M16 21l-2 -4l-3 -3l1 -6"/><path d="M6 12l2 -3l4 -1l3 3l3 1"/></svg>',
+    sueno:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    peso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M19 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M5 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/></svg>'
+  };
   const color=COLORS[metric];
   const unit=UNITS[metric];
   const di=state.selectedDay;
@@ -5190,7 +5223,7 @@ function openMetricModal(event,metric){
           '<div style="height:6px;background:#f0fdf4;border-radius:3px;overflow:hidden;margin-bottom:12px">'+
           '<div style="height:100%;width:'+pct+'%;background:#16a34a;border-radius:3px"></div></div>';
     } else if(metric==='sueno'){
-      const msg=pf<6?'Poco descanso 😴':pf<=8?'Buen descanso 🌙':'Muy buen descanso ⭐';
+      const msg=pf<6?'Poco descanso':pf<=8?'Buen descanso':'Muy buen descanso';
       ctx='<div style="font-size:12px;color:#bbb;margin-bottom:8px">'+msg+'</div>';
     } else if(metric==='peso'){
       const prev=parseFloat(dd[metric]||clientData?.weight_kg||0);
@@ -5320,7 +5353,7 @@ async function openActivityHistoryModal(event){
       '<button onclick="window._actClose()" style="width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'+
       '</button>'+
-      '<div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚡</div>'+
+      '<div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;font-weight:400;color:#111">Actividad extra</div>'+
     '</div>'+
     '<div style="flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;padding:20px 16px 60px;scrollbar-width:none" id="act-scroll">'+
