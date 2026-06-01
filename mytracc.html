@@ -592,7 +592,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
   <div class="notif-inner" id="notif-inner" onclick="event.stopPropagation()">
     <div style="padding:14px 16px 12px;border-bottom:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:32px;height:32px;border-radius:9px;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+        <div style="width:32px;height:32px;border-radius:9px;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:16px">🔔</div>
         <div style="font-family:'DM Serif Display',serif;font-size:18px;font-weight:400;color:#111">Notificaciones</div>
       </div>
       <button onclick="closeNotifPanel()" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:18px;padding:2px 6px;line-height:1">✕</button>
@@ -1623,9 +1623,9 @@ function renderHome(){
   // Racha (semanas seguidas) DENTRO de la tarjeta, arriba a la derecha. Solo semana actual.
   let streakBadge='';
   if(isCurrentWeek){
-    const _st=trainingStreakSessions();
+    const _st=trainingStreakWeeks();
     if(_st>=1){
-      streakBadge='<div title="'+_st+' entrenos seguidos sin fallar" style="display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 8px;border-radius:20px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);">'+
+      streakBadge='<div title="'+_st+' semanas entrenando seguidas" style="display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 8px;border-radius:20px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);">'+
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>'+
         '<span style="font-family:\'DM Serif Display\',serif;font-size:14px;color:#fff;line-height:1;">'+_st+'</span>'+
       '</div>';
@@ -1663,18 +1663,11 @@ function renderHome(){
   '</div>';
 
   // Metric cards nuevo diseño
-  const METRIC_ICON_PATHS={
-    walk:'<path d="M13 4m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 21l3 -4"/><path d="M16 21l-2 -4l-3 -3l1 -6"/><path d="M6 12l2 -3l4 -1l3 3l3 1"/>',
-    moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
-    scale:'<path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M19 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M5 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/>',
-    bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'
-  };
-  const metricIconSvg=(key,color)=>'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="'+color+'" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(METRIC_ICON_PATHS[key]||'')+'</svg>';
   const metricCard=(label,value,unit,color,barW,onclick,icon)=>
     '<div onclick="'+onclick+'" style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">'+label+'</div>'+
-        (icon?metricIconSvg(icon,color):'')+
+        (icon?'<span style="font-size:15px;line-height:1;">'+icon+'</span>':'')+
       '</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:'+(value?color:'#ddd')+';letter-spacing:-1px;line-height:1;flex:1;display:flex;align-items:center;">'+
         (value?(value+(unit?' <span style="font-size:13px;font-weight:400;color:#bbb;font-family:var(--font)">'+unit+'</span>':'')):'—')+
@@ -1687,7 +1680,7 @@ function renderHome(){
   const actCard='<div onclick="openActivityHistoryModal(event)" style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
       '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">Actividad</div>'+
-      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'+
+      '<span style="font-size:15px;line-height:1;">⚡</span>'+
     '</div>'+
     (dd.entreno
       ? '<div style="font-size:17px;font-weight:700;color:#2563eb;line-height:1.25;flex:1;display:flex;align-items:center;">'+escHtml(dd.entreno)+'</div>'
@@ -1721,9 +1714,9 @@ function renderHome(){
       '<div style="padding:0 16px;margin-bottom:12px;display:flex;gap:5px;">'+weekStrip+'</div>'+
       // Metric cards 2x2
       '<div style="padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">'+
-        metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','walk')+
-        metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','moon')+
-        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','scale')+
+        metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','👟')+
+        metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','😴')+
+        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','⚖️')+
         actCard+
       '</div>'+
       // Export btn
@@ -1853,7 +1846,7 @@ function renderTrain(){
   '</button>':'';
 
   const sessionBanner=dd.sessionSaved?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">'+
-    '<div style="flex:1;font-size:13px;font-weight:600;color:#16a34a;">✅ Sesión completada y guardada</div>'+
+    '<div style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#16a34a;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Sesión completada y guardada</div>'+
     '<button onclick="openDeleteSessionConfirm('+di+')" title="Borrar esta sesión" style="background:transparent;border:none;padding:4px;cursor:pointer;color:#16a34a;opacity:.55;display:flex;align-items:center;font-family:\'DM Sans\',sans-serif;font-size:11px;font-weight:600;gap:4px;" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'.55\'">'+
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>'+
       'Borrar'+
@@ -1874,7 +1867,7 @@ function renderTrain(){
 
     // PR del ejercicio (mejor serie del meso) para mostrar en la propia pantalla
     const pr=bestSetForExercise(ex.n);
-    const prPill=pr?'<span class="ex-pill" style="background:#fffbe6;color:#a16207;border:1px solid #fde68a">🏅 '+(pr.reps||'?')+'×'+pr.kg+'</span>':'';
+    const prPill=pr?'<span style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:#a16207"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"/></svg>'+(pr.reps||'?')+'×'+pr.kg+'</span>':'';
     // Nota del ejercicio para la sesión de este día
     const daySess=sessionsCache[getDayDate(di)];
     const exNote=(daySess&&daySess.id&&exerciseNotesCache[daySess.id]&&exerciseNotesCache[daySess.id][ex.n])||'';
@@ -1890,28 +1883,30 @@ function renderTrain(){
       return m?m[1].replace(',','.'):'';
     }
 
-    const statusTxt=exDone?'✓ listo':doneSetsCount+'/'+ex.s;
-    const statusCol=exDone?'#16a34a':doneSetsCount>0?'#16a34a':'#bbb';
-
     const videoBtnHtml=ex.v?
-      '<button onclick="event.stopPropagation();openVideoModal(\'' + ex.n + '\',\'' + ex.v + '\')" style="width:28px;height:28px;border-radius:8px;border:none;background:#f97316;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-right:4px">'+
-        '<svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><polygon points="5,3 19,12 5,21"/></svg>'+
+      '<button onclick="event.stopPropagation();openVideoModal(\'' + ex.n + '\',\'' + ex.v + '\')" style="width:30px;height:30px;border-radius:9px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-right:4px;color:#16a34a">'+
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>'+
       '</button>':'';
 
+    const numBadge=exDone
+      ?'<div class="ex-num done"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
+      :'<div class="ex-num">'+ex.o+'</div>';
+    const statusHtml=exDone
+      ?'<span style="font-size:11px;font-weight:700;color:#16a34a;display:flex;align-items:center;gap:3px;flex-shrink:0;margin-right:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Hecho</span>'
+      :'<span style="font-size:11px;font-weight:700;color:'+(doneSetsCount>0?'#16a34a':'#bbb')+';flex-shrink:0;margin-right:6px">'+doneSetsCount+'/'+ex.s+'</span>';
+
     const header='<div class="ex-card-header" onclick="toggleEx('+ex.o+')">'+
-      '<div class="ex-num'+(exDone?' done':'')+'">'+(exDone?'✓':ex.o)+'</div>'+
+      numBadge+
       '<div class="ex-card-info">'+
         '<div class="ex-card-name">'+ex.n+'</div>'+
-        '<div style="display:flex;flex-wrap:wrap;margin-top:3px">'+
-          '<span class="ex-pill">'+ex.s+' series</span>'+
-          '<span class="ex-pill">'+ex.r+'</span>'+
-          '<span class="ex-pill gp">⏱ '+ex.d+"'</span>"+
+        '<div style="display:flex;align-items:center;gap:10px;margin-top:3px">'+
+          '<span style="font-size:11px;color:#bbb;font-weight:500;white-space:nowrap">'+ex.s+' × '+ex.r+' · '+ex.d+' min</span>'+
           prPill+
         '</div>'+
       '</div>'+
       videoBtnHtml+
-      '<span style="font-size:11px;font-weight:700;color:'+statusCol+';flex-shrink:0;margin-right:6px">'+statusTxt+'</span>'+
-      '<span class="ex-chevron'+(isOpen?' open':'')+'">▼</span>'+
+      statusHtml+
+      '<span class="ex-chevron'+(isOpen?' open':'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>'+
     '</div>';
         if(!isOpen) return '<div class="ex-card'+(exDone?' done':'')+'">'+header+'</div>';
 
@@ -1938,12 +1933,13 @@ function renderTrain(){
         '<span style="font-size:11px;font-weight:700;color:'+(isSaved?'#16a34a':'#ccc')+';text-align:center">S'+(si+1)+'</span>'+
         '<input type="number" inputmode="numeric" placeholder="'+placeholderReps+'" value="'+repsVal+'" class="set-inp2'+(isSaved?' saved':'')+'" onchange="setPendingV2('+ex.o+','+si+',\'reps\',this.value)" id="inp-'+ex.o+'-'+si+'-reps">'+
         '<input type="number" inputmode="decimal" placeholder="'+placeholderKg+'" value="'+kgVal+'" step="0.5" class="set-inp2'+(isSaved?' saved':'')+'" onchange="setPendingV2('+ex.o+','+si+',\'kg\',this.value)" id="inp-'+ex.o+'-'+si+'-kg">'+
-        '<button class="set-save-btn'+(isSaved?' saved':'')+'" onclick="saveSetV2('+ex.o+','+si+','+ex.d+','+ex.s+')">'+(isSaved?'✓':'○')+'</button>'+
+        '<button class="set-save-btn'+(isSaved?' saved':'')+'" onclick="saveSetV2('+ex.o+','+si+','+ex.d+','+ex.s+')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>'+
       '</div>';
     }).join('');
 
     const noteOpen=state.openNoteEx===ex.o;
-    const noteBtnLabel=exNote?'📝 Nota ✓':'📝 Nota';
+    const _noteIco='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    const noteBtnLabel=_noteIco+(exNote?' Nota ✓':' Nota');
     const noteBtnStyle=exNote
       ?'flex:0 0 auto;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.3);color:#16a34a'
       :'flex:0 0 auto;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888';
@@ -1957,9 +1953,9 @@ function renderTrain(){
     const body='<div style="padding:0 14px 12px;border-top:1.5px solid #eaeae6">'+
       colHdrs+setsHtml+
       '<div style="display:flex;gap:6px;margin-top:8px">'+
-        '<button onclick="openExHistory(exNames['+ex.o+'],exSessions['+ex.o+'],'+ex.o+')" style="flex:1;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;border-radius:10px;padding:9px 0;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">📋 Ver historial</button>'+
-        '<button onclick="copyLastSession('+ex.o+')" style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);color:#16a34a;border-radius:10px;padding:9px 0;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">⬆ Copiar anterior</button>'+
-        '<button onclick="toggleExNote('+ex.o+')" style="'+noteBtnStyle+';border-radius:10px;padding:9px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">'+noteBtnLabel+'</button>'+
+        '<button onclick="openExHistory(exNames['+ex.o+'],exSessions['+ex.o+'],'+ex.o+')" style="flex:1;background:#f5f5f3;border:1.5px solid #eaeae6;color:#777;border-radius:10px;padding:9px 0;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> Historial</button>'+
+        '<button onclick="copyLastSession('+ex.o+')" style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);color:#16a34a;border-radius:10px;padding:9px 0;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar</button>'+
+        '<button onclick="toggleExNote('+ex.o+')" style="'+noteBtnStyle+';border-radius:10px;padding:9px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:5px">'+noteBtnLabel+'</button>'+
       '</div>'+
       noteField+
     '</div>';
@@ -1972,16 +1968,16 @@ function renderTrain(){
     '<textarea style="width:100%;border:1.5px solid #eaeae6;border-radius:10px;background:#f5f5f3;padding:11px 12px;font-size:14px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:64px;outline:none" onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\'" placeholder="Sensaciones, PR, lesiones…" onchange="saveDayField('+di+',\'notas\',this.value)">'+dd.notas+'</textarea>'+
   '</div>';
 
-  const exportBtn='<div style="display:flex;justify-content:center;padding:8px 0 16px">'+
-    '<button onclick="openExportConfirm(exportTrainingPlan)" style="width:36px;height:36px;border-radius:50%;background:#f5f5f3;border:1.5px solid #eaeae6;cursor:pointer;display:flex;align-items:center;justify-content:center">'+
-      '<svg viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"/></svg>'+
+  const exportBtn='<div style="text-align:center;padding:10px 0 4px">'+
+    '<button onclick="openExportConfirm(exportTrainingPlan)" style="background:none;border:none;color:#bbb;font-size:11px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:inline-flex;align-items:center;gap:5px">'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"/></svg> Exportar registro'+
     '</button>'+
   '</div>';
 
   const finishBar='<div class="finish-bar">'+
     '<div style="display:flex;gap:8px">'+
-      '<button style="flex:1;height:52px;border-radius:14px;background:#111;color:#fff;font-family:\'DM Sans\',sans-serif;font-size:15px;font-weight:600;border:none;cursor:pointer;letter-spacing:-.2px" onclick="finishSession(\''+current+'\','+di+','+savedSeries+','+totalSeries+','+exs.length+')">🏆 Finalizar</button>'+
-      '<button style="flex:1;height:52px;border-radius:14px;background:#f0fdf4;color:#16a34a;font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:700;border:1.5px solid rgba(22,163,74,.2);cursor:pointer;letter-spacing:-.2px" onclick="openEvolucion(\''+current+'\')">📈 Ver progreso</button>'+
+      '<button style="flex:1.4;height:52px;border-radius:14px;background:#16a34a;color:#fff;font-family:\'DM Sans\',sans-serif;font-size:15px;font-weight:700;border:none;cursor:pointer;letter-spacing:-.2px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="finishSession(\''+current+'\','+di+','+savedSeries+','+totalSeries+','+exs.length+')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Finalizar sesión</button>'+
+      '<button style="flex:1;height:52px;border-radius:14px;background:#f5f5f3;color:#444;font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:700;border:1.5px solid #eaeae6;cursor:pointer;letter-spacing:-.2px;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEvolucion(\''+current+'\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Progreso</button>'+
     '</div>'+
   '</div>';
 
@@ -1989,16 +1985,19 @@ function renderTrain(){
   const now2=new Date();const meses2=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const d2=new Date();d2.setDate(d2.getDate()+(di-todayI)+(state.weekOffset||0)*7);
   const dateLabel2=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d2.getDay()]+', '+d2.getDate()+' '+meses2[d2.getMonth()];
-  const headTitle=isCurrentWeek&&di===todayI?'Sesión de <em style="color:#16a34a;">hoy.</em>':DAYS[di]+'<em style="color:#16a34a;">.</em>';
-  const sessionHeader='<div style="margin-bottom:14px">'+
-    '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:4px;">'+dateLabel2+'</div>'+
-    '<div style="display:flex;align-items:flex-start;justify-content:space-between;">'+
-      '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1;">'+headTitle+'</div>'+
-      '<div style="text-align:right;padding-top:4px;">'+
-        '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#bbb;margin-bottom:5px;">'+savedSeries+' / '+totalSeries+' series</div>'+
-        '<div style="width:80px;height:5px;background:#eaeae6;border-radius:3px;overflow:hidden;"><div style="height:100%;width:'+progPct+'%;background:#16a34a;border-radius:3px;"></div></div>'+
-      '</div>'+
+  const isTrainHdr=SESSIONS.includes(active);
+  const titleCase=isTrainHdr?(active.charAt(0).toUpperCase()+active.slice(1).toLowerCase()):'Descanso';
+  const _rr=27,_cc=2*Math.PI*_rr,_oo=_cc*(1-progPct/100);
+  const ring=isTrainHdr?'<div style="position:relative;width:60px;height:60px;flex-shrink:0">'+
+      '<svg width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="'+_rr+'" fill="none" stroke="#eaeae6" stroke-width="5"/><circle cx="30" cy="30" r="'+_rr+'" fill="none" stroke="#16a34a" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+_cc.toFixed(1)+'" stroke-dashoffset="'+_oo.toFixed(1)+'" transform="rotate(-90 30 30)"/></svg>'+
+      '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-family:\'DM Serif Display\',serif;font-size:15px;color:#111;line-height:1">'+savedSeries+'/'+totalSeries+'</div><div style="font-size:8px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.04em">series</div></div>'+
+    '</div>':'';
+  const sessionHeader='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+    '<div>'+
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:3px;">'+dateLabel2+'</div>'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:#111;letter-spacing:-.5px;line-height:1;">'+titleCase+'<em style="color:#16a34a;font-style:normal;">.</em></div>'+
     '</div>'+
+    ring+
   '</div>';
   // Si es día de descanso y el usuario no ha seleccionado sesión manualmente
   if(isRestDay){
@@ -2006,7 +2005,7 @@ function renderTrain(){
       '<div style="flex:1;overflow-y:auto;padding:68px 16px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
         sessionHeader+weekNavHtml()+daySelector+
         '<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:20px;padding:24px;text-align:center;margin-top:8px">'+
-          '<div style="font-size:40px;margin-bottom:14px">🌿</div>'+
+          '<div style="width:56px;height:56px;border-radius:16px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg></div>'+
           '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;margin-bottom:8px">Día de descanso.</div>'+
           '<div style="font-size:14px;color:#666;line-height:1.6;margin-bottom:20px">El descanso es parte del entrenamiento. Tu cuerpo se adapta y crece mientras recupera.</div>'+
           '<div style="font-size:12px;color:rgba(22,163,74,.7);font-weight:600;line-height:1.5">¿Quieres entrenar igualmente?<br>Selecciona un día del selector de arriba.</div>'+
@@ -2870,28 +2869,6 @@ function trainingStreakWeeks(){
   return streak;
 }
 
-// Entrenos seguidos cumpliendo SIN fallar: cuenta hacia atrás desde hoy los días
-// de entreno planificados que se completaron. El descanso no rompe la racha.
-// El día de hoy, si aún está pendiente, tampoco rompe (no ha "fallado" todavía).
-function trainingStreakSessions(){
-  const done=function(dateStr){const s=sessionsCache&&sessionsCache[dateStr];return !!(s&&(s.completed||(s.workout_sets&&s.workout_sets.length)));};
-  let streak=0;
-  const today=new Date();today.setHours(12,0,0,0);
-  for(let back=0;back<120;back++){
-    const d=new Date(today);d.setDate(today.getDate()-back);
-    const dateStr=d.toISOString().slice(0,10);
-    const wk=getWeekKey(d), di=getDayIdx(d);
-    const plan=getWeekPlan(wk)||[];
-    const ov=(gymData[wk]&&gymData[wk][di]&&gymData[wk][di].sessionOverride)||null;
-    const active=ov||plan[di];
-    const isTrain=SESSIONS.includes(active);
-    if(done(dateStr)){ streak++; continue; }      // entreno hecho → cuenta
-    if(isTrain){ if(back===0) continue; break; }   // entreno planificado no hecho: hoy=pendiente; pasado=rompe
-    // día de descanso sin entreno → no afecta
-  }
-  return streak;
-}
-
 // Resumen del mesociclo actual: {sessions, prs, weekNum, weeks, deltaKg}
 function mesoSummary(){
   const startStr=(activeMeso&&activeMeso.start_date)?String(activeMeso.start_date).slice(0,10):null;
@@ -3740,7 +3717,7 @@ async function openExHistory(exName,session,exOrder){
 
   const bestBlock=bestKg>0?
     '<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'+
-      '<div style="width:38px;height:38px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏆</div>'+
+      '<div style="width:38px;height:38px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#16a34a"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"/></svg></div>'+
       '<div>'+
         '<div style="font-size:22px;font-family:\'DM Serif Display\',serif;color:#16a34a;letter-spacing:-0.5px;line-height:1">'+bestStr+'</div>'+
         '<div style="font-size:10px;font-weight:600;color:#86efac;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px">Mejor serie del mesociclo</div>'+
@@ -3764,7 +3741,7 @@ async function openExHistory(exName,session,exOrder){
       );
     }).join(''):
     '<div style="text-align:center;padding:32px 0">'+
-      '<div style="font-size:32px;margin-bottom:8px">📋</div>'+
+      '<div style="width:48px;height:48px;border-radius:14px;background:#f0f0ec;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#ccc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h4"/></svg></div>'+
       '<div style="font-size:14px;color:#bbb;font-weight:500">Sin historial aún</div>'+
       '<div style="font-size:12px;color:#ccc;margin-top:4px">Guarda tu primera serie para verla aquí</div>'+
     '</div>';
@@ -3886,7 +3863,7 @@ async function _doFinish(current,di,savedSeries,totalSeries,totalEx,dd,exs,pct){
 
   const prHtml=prs.length?
     '<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;padding:14px 16px;margin-bottom:16px">'+
-      '<div style="font-size:10px;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px">🏅 Nuevos registros personales</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"/></svg> Nuevos registros personales</div>'+
       prs.map(p=>'<div style="font-size:13px;color:#111;padding:3px 0;font-weight:600">'+p.name+' <span style="color:#16a34a;font-weight:700">'+p.val+'</span></div>').join('')+
     '</div>':'';
 
@@ -3901,7 +3878,7 @@ async function _doFinish(current,di,savedSeries,totalSeries,totalEx,dd,exs,pct){
     '<div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:12px auto 0"></div>'+
     '<div style="padding:20px 20px 0">'+
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">'+
-        '<div style="width:40px;height:40px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:20px">🏆</div>'+
+        '<div style="width:40px;height:40px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;color:#16a34a"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>'+
         '<div>'+
           '<div style="font-family:\'DM Serif Display\',serif;font-size:24px;color:#111;letter-spacing:-0.5px;line-height:1.1">Sesión completada.</div>'+
           '<div style="font-size:12px;color:#aaa;font-weight:500;margin-top:2px">'+current+' · '+DAYS[di]+'</div>'+
@@ -3911,8 +3888,8 @@ async function _doFinish(current,di,savedSeries,totalSeries,totalEx,dd,exs,pct){
       statsGrid+
       prHtml+
       '<div style="display:flex;gap:10px;margin-top:4px">'+
-        '<button id="fin-close-btn" style="flex:1;height:52px;border-radius:14px;border:1.5px solid #eaeae6;background:#fff;color:#111;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Guardar ✓</button>'+
-        '<button id="fin-evol-btn" style="flex:1;height:52px;border-radius:14px;border:none;background:#16a34a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Ver evolución →</button>'+
+        '<button id="fin-close-btn" style="flex:1;height:52px;border-radius:14px;border:1.5px solid #eaeae6;background:#fff;color:#111;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:7px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Hecho</button>'+
+        '<button id="fin-evol-btn" style="flex:1;height:52px;border-radius:14px;border:none;background:#16a34a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px">Ver evolución <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>'+
       '</div>'+
     '</div>';
 
@@ -4468,9 +4445,9 @@ async function openEvolucion(session){
   const subtitleEl=document.getElementById('evol-subtitle');
 
   const exs=MESO2[session]||[];
-  const sessionEmoji={LEG:'🦵',PULL:'🔙',PUSH:'💪',TORSO:'🏋️'}[session]||'📊';
-  titleEl.innerHTML=sessionEmoji+' '+session;
-  body.innerHTML='<div style="text-align:center;padding:60px 0"><div style="font-size:28px;margin-bottom:12px">⏳</div><div style="font-size:13px;color:#bbb">Cargando historial...</div></div>';
+  const _evoIco='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>';
+  titleEl.innerHTML=_evoIco+session;
+  body.innerHTML='<div style="text-align:center;padding:60px 0"><div style="font-size:13px;color:#bbb">Cargando historial…</div></div>';
   panel.classList.add('open');
 
   // Cargar sesiones desde Supabase
@@ -4509,7 +4486,7 @@ async function openEvolucion(session){
   subtitleEl.textContent=total===0?'Sin sesiones aún':total+' sesión'+(total!==1?'es':'')+' · desliza →';
 
   if(exs.length===0){
-    body.innerHTML='<div style="text-align:center;padding:80px 20px"><div style="font-size:48px;margin-bottom:16px">📊</div><div style="font-size:15px;color:#bbb;font-weight:500">Sin datos de plan</div></div>';
+    body.innerHTML='<div style="text-align:center;padding:80px 20px"><div style="width:52px;height:52px;border-radius:15px;background:#f0f0ec;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#ccc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><div style="font-size:15px;color:#bbb;font-weight:500">Sin datos de plan</div></div>';
     panel.classList.add('open');return;
   }
 
@@ -4792,9 +4769,9 @@ function renderGuidedBody(){
   // Barra superior: progreso de ejercicios + cerrar
   const topBar='<div style="padding:calc(14px + env(safe-area-inset-top)) 16px 12px;background:#111;color:#fff;flex-shrink:0">'+
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'+
-      '<button onclick="closeGuided()" style="width:34px;height:34px;border-radius:10px;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>'+
+      '<button onclick="closeGuided()" style="width:34px;height:34px;border-radius:10px;border:none;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
       '<div style="flex:1;font-size:13px;font-weight:700;letter-spacing:-.1px">'+current+' · ejercicio '+(idx+1)+' de '+exs.length+'</div>'+
-      '<div style="font-size:12px;font-weight:700;color:#4ade80">'+doneCount+'/'+exs.length+' ✓</div>'+
+      '<div style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#4ade80"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> '+doneCount+'/'+exs.length+'</div>'+
     '</div>'+
     // Puntos de progreso por ejercicio (tocables)
     '<div style="display:flex;gap:4px">'+
@@ -4805,16 +4782,16 @@ function renderGuidedBody(){
   '</div>';
 
   // Cabecera del ejercicio
-  const videoBtn=ex.v?'<button onclick="openVideoModal(\''+ex.n+'\',\''+ex.v+'\')" style="width:46px;height:46px;border-radius:13px;border:none;background:#f97316;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><polygon points="6,4 20,12 6,20"/></svg></button>':'';
+  const videoBtn=ex.v?'<button onclick="openVideoModal(\''+ex.n+'\',\''+ex.v+'\')" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;flex-shrink:0">'+
+    '<div style="width:46px;height:46px;border-radius:14px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;color:#16a34a"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>'+
+    '<span style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.04em">Técnica</span>'+
+  '</button>':'';
   const head='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px">'+
     '<div style="flex:1;min-width:0">'+
-      '<div style="font-family:\'DM Serif Display\',serif;font-size:26px;color:#111;letter-spacing:-.5px;line-height:1.1;margin-bottom:8px">'+ex.n+'</div>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:4px">'+
-        '<span class="ex-pill">'+ex.s+' series</span>'+
-        '<span class="ex-pill">'+ex.r+'</span>'+
-        '<span class="ex-pill gp">⏱ '+ex.d+"'</span>"+
-        (pr?'<span class="ex-pill" style="background:#fffbe6;color:#a16207;border:1px solid #fde68a">🏅 '+(pr.reps||'?')+'×'+pr.kg+'</span>':'')+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:25px;color:#111;letter-spacing:-.5px;line-height:1.1;margin-bottom:8px">'+ex.n+'</div>'+
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+        '<span style="font-size:12px;color:#999;font-weight:500">'+ex.s+' series · '+ex.r+' · '+ex.d+' min</span>'+
+        (pr?'<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:#a16207"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"/></svg>'+(pr.reps||'?')+'×'+pr.kg+'</span>':'')+
       '</div>'+
     '</div>'+
     videoBtn+
@@ -4834,16 +4811,16 @@ function renderGuidedBody(){
       '<span style="font-size:13px;font-weight:700;color:'+(isSaved?'#16a34a':'#ccc')+';text-align:center">S'+(si+1)+'</span>'+
       '<input type="number" inputmode="numeric" placeholder="'+phReps+'" value="'+repsVal+'" class="set-inp2'+(isSaved?' saved':'')+'" style="padding:13px 6px;font-size:16px" onchange="setPendingV2('+ex.o+','+si+',\'reps\',this.value)" id="inp-'+ex.o+'-'+si+'-reps">'+
       '<input type="number" inputmode="decimal" placeholder="'+phKg+'" value="'+kgVal+'" step="0.5" class="set-inp2'+(isSaved?' saved':'')+'" style="padding:13px 6px;font-size:16px" onchange="setPendingV2('+ex.o+','+si+',\'kg\',this.value)" id="inp-'+ex.o+'-'+si+'-kg">'+
-      '<button class="set-save-btn'+(isSaved?' saved':'')+'" style="width:38px;height:38px;font-size:15px" onclick="saveSetV2('+ex.o+','+si+','+ex.d+','+ex.s+')">'+(isSaved?'✓':'○')+'</button>'+
+      '<button class="set-save-btn'+(isSaved?' saved':'')+'" style="width:38px;height:38px" onclick="saveSetV2('+ex.o+','+si+','+ex.d+','+ex.s+')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>'+
     '</div>';
   }).join('');
 
   // Acciones: historial, copiar anterior, nota
   const noteOpen=state.openNoteEx===ex.o;
   const actions='<div style="display:flex;gap:6px;margin-top:12px">'+
-    '<button onclick="openExHistory(exNames['+ex.o+'],exSessions['+ex.o+'],'+ex.o+')" style="flex:1;background:#f5f5f3;border:1.5px solid #eaeae6;color:#888;border-radius:11px;padding:11px 0;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">📋 Historial</button>'+
-    '<button onclick="copyLastSession('+ex.o+');refreshGuidedBody()" style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);color:#16a34a;border-radius:11px;padding:11px 0;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">⬆ Copiar anterior</button>'+
-    '<button onclick="toggleExNote('+ex.o+');refreshGuidedBody()" style="background:'+(exNote?'#f0fdf4':'#f5f5f3')+';border:1.5px solid '+(exNote?'rgba(22,163,74,.3)':'#eaeae6')+';color:'+(exNote?'#16a34a':'#888')+';border-radius:11px;padding:11px 13px;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap">📝'+(exNote?' ✓':'')+'</button>'+
+    '<button onclick="openExHistory(exNames['+ex.o+'],exSessions['+ex.o+'],'+ex.o+')" style="flex:1;background:#f5f5f3;border:1.5px solid #eaeae6;color:#777;border-radius:11px;padding:11px 0;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> Historial</button>'+
+    '<button onclick="copyLastSession('+ex.o+');refreshGuidedBody()" style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);color:#16a34a;border-radius:11px;padding:11px 0;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar</button>'+
+    '<button onclick="toggleExNote('+ex.o+');refreshGuidedBody()" style="background:'+(exNote?'#f0fdf4':'#f5f5f3')+';border:1.5px solid '+(exNote?'rgba(22,163,74,.3)':'#eaeae6')+';color:'+(exNote?'#16a34a':'#777')+';border-radius:11px;padding:11px 13px;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'+(exNote?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</button>'+
   '</div>';
   const noteField=(noteOpen||exNote)?'<textarea id="exnote-'+ex.o+'" placeholder="Contexto para Pol: ej. hombro molestaba…" style="width:100%;margin-top:10px;border:1.5px solid #eaeae6;border-radius:11px;background:#fafaf8;padding:11px 12px;font-size:14px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:54px;outline:none;box-sizing:border-box" onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\'" onchange="saveExNote('+ex.o+',this.value)">'+escHtml(exNote)+'</textarea>':'';
 
@@ -4851,10 +4828,10 @@ function renderGuidedBody(){
   const isLast=idx===exs.length-1;
   const allDone=doneCount===exs.length;
   const nav='<div class="finish-bar" style="display:flex;gap:8px">'+
-    (idx>0?'<button onclick="guidedNav(-1)" style="flex:0 0 auto;width:54px;height:52px;border-radius:14px;background:#f5f5f3;border:1.5px solid #eaeae6;color:#666;font-size:18px;cursor:pointer;font-family:\'DM Sans\',sans-serif">←</button>':'')+
+    (idx>0?'<button onclick="guidedNav(-1)" style="flex:0 0 auto;width:54px;height:52px;border-radius:14px;background:#f5f5f3;border:1.5px solid #eaeae6;color:#666;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>':'')+
     (isLast
-      ?'<button onclick="finishSession(\''+current+'\','+di+','+exs.reduce((a,e)=>a+(((dd.savedSets&&dd.savedSets[e.o])||[]).filter(Boolean).length),0)+','+exs.reduce((a,e)=>a+e.s,0)+','+exs.length+');closeGuided()" style="flex:1;height:52px;border-radius:14px;background:#16a34a;color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:0 4px 16px rgba(22,163,74,.25)">🏆 Finalizar sesión</button>'
-      :'<button onclick="guidedNav(1)" style="flex:1;height:52px;border-radius:14px;background:#111;color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif">Siguiente ejercicio →</button>')+
+      ?'<button onclick="finishSession(\''+current+'\','+di+','+exs.reduce((a,e)=>a+(((dd.savedSets&&dd.savedSets[e.o])||[]).filter(Boolean).length),0)+','+exs.reduce((a,e)=>a+e.s,0)+','+exs.length+');closeGuided()" style="flex:1;height:52px;border-radius:14px;background:#16a34a;color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:0 4px 16px rgba(22,163,74,.25);display:flex;align-items:center;justify-content:center;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Finalizar sesión</button>'
+      :'<button onclick="guidedNav(1)" style="flex:1;height:52px;border-radius:14px;background:#111;color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">Siguiente ejercicio <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>')+
   '</div>';
 
   return topBar+
@@ -4997,7 +4974,7 @@ function openVideoModal(exName, videoUrl){
         '<div style="width:36px;height:4px;background:#333;border-radius:2px;margin:0 auto 10px"></div>'+
         '<div style="font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.2px">'+exName+'</div>'+
       '</div>'+
-      '<button onclick="closeVideo()" style="width:32px;height:32px;border-radius:50%;border:none;background:#222;color:#aaa;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>'+
+      '<button onclick="closeVideo()" style="width:32px;height:32px;border-radius:50%;border:none;background:#222;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
     '</div>'+
     '<div style="flex:1;background:#000;min-height:0">'+
       '<iframe src="'+embedUrl+'" style="width:100%;height:100%;border:none" allow="autoplay;encrypted-media" allowfullscreen></iframe>'+
@@ -5175,11 +5152,7 @@ function openMetricModal(event,metric){
   const TITLES={pasos:'Pasos de hoy',sueno:'Sueño',peso:'Peso de hoy'};
   const UNITS={pasos:'pasos',sueno:'h',peso:'kg'};
   const COLORS={pasos:'#16a34a',sueno:'#7c3aed',peso:'#111'};
-  const ICONS={
-    pasos:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 21l3 -4"/><path d="M16 21l-2 -4l-3 -3l1 -6"/><path d="M6 12l2 -3l4 -1l3 3l3 1"/></svg>',
-    sueno:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
-    peso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M19 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M5 8l3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/></svg>'
-  };
+  const ICONS={pasos:'👟',sueno:'😴',peso:'⚖️'};
   const color=COLORS[metric];
   const unit=UNITS[metric];
   const di=state.selectedDay;
@@ -5223,7 +5196,7 @@ function openMetricModal(event,metric){
           '<div style="height:6px;background:#f0fdf4;border-radius:3px;overflow:hidden;margin-bottom:12px">'+
           '<div style="height:100%;width:'+pct+'%;background:#16a34a;border-radius:3px"></div></div>';
     } else if(metric==='sueno'){
-      const msg=pf<6?'Poco descanso':pf<=8?'Buen descanso':'Muy buen descanso';
+      const msg=pf<6?'Poco descanso 😴':pf<=8?'Buen descanso 🌙':'Muy buen descanso ⭐';
       ctx='<div style="font-size:12px;color:#bbb;margin-bottom:8px">'+msg+'</div>';
     } else if(metric==='peso'){
       const prev=parseFloat(dd[metric]||clientData?.weight_kg||0);
@@ -5353,7 +5326,7 @@ async function openActivityHistoryModal(event){
       '<button onclick="window._actClose()" style="width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'+
       '</button>'+
-      '<div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>'+
+      '<div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚡</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;font-weight:400;color:#111">Actividad extra</div>'+
     '</div>'+
     '<div style="flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;padding:20px 16px 60px;scrollbar-width:none" id="act-scroll">'+
