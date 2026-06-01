@@ -1620,6 +1620,17 @@ function renderHome(){
     if(completadoHoy) statusPill='<div style="font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#bbf7d0;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:3px 9px;border-radius:20px;">✓ Completado</div>';
     else if(isToday) statusPill='<div style="font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fde68a;background:rgba(253,230,138,.18);border:1px solid rgba(253,230,138,.35);padding:3px 9px;border-radius:20px;">Pendiente</div>';
   }
+  // Racha (semanas seguidas) DENTRO de la tarjeta, arriba a la derecha. Solo semana actual.
+  let streakBadge='';
+  if(isCurrentWeek){
+    const _st=trainingStreakWeeks();
+    if(_st>=1){
+      streakBadge='<div title="'+_st+' semanas entrenando seguidas" style="display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 8px;border-radius:20px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);">'+
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>'+
+        '<span style="font-family:\'DM Serif Display\',serif;font-size:14px;color:#fff;line-height:1;">'+_st+'</span>'+
+      '</div>';
+    }
+  }
   // Botón principal: solo viendo HOY y si es día de entreno
   let primaryBtn='';
   if(isToday&&isTrain){
@@ -1631,7 +1642,7 @@ function renderHome(){
     '<div style="position:absolute;top:-60px;right:-60px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.07) 0%,transparent 70%);pointer-events:none;"></div>'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'+
       '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);">'+(isToday?'Plan de hoy':'Plan del día')+'</div>'+
-      statusPill+
+      '<div style="display:flex;align-items:center;gap:7px;">'+streakBadge+statusPill+'</div>'+
     '</div>'+
     '<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:6px;">'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:46px;color:#fff;letter-spacing:-2px;line-height:1;">'+active+'</div>'+
@@ -1694,8 +1705,6 @@ function renderHome(){
       '</div>'+
       // Plan card
       planCard+
-      // Racha de entreno (semanas seguidas) — solo si hay racha
-      homeStreakHtml()+
       // Check-in semanal (sáb/dom)
       checkinBannerHtml()+
       // Aviso de cuota pendiente/vencida
