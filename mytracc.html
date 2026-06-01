@@ -331,7 +331,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 .perfil-avatar{width:72px;height:72px;border-radius:50%;background:#f0fdf4;border:3px solid rgba(22,163,74,.2);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:28px;color:#16a34a;margin-bottom:14px}
 .perfil-name{font-family:'DM Serif Display',serif;font-size:26px;color:#111;letter-spacing:-.5px;margin-bottom:4px}
 .perfil-email{font-size:13px;color:#bbb;margin-bottom:12px}
-.perfil-trainer-row{display:flex;align-items:center;gap:8px;background:#f5f5f3;border:1.5px solid #eaeae6;border-radius:10px;padding:8px 14px}
+.perfil-trainer-row{display:flex;align-items:center;gap:10px;background:#fafaf8;border:1.5px solid #eaeae6;border-radius:14px;padding:10px 12px;width:100%;box-sizing:border-box;margin-top:4px}
 .perfil-trainer-av{width:28px;height:28px;border-radius:50%;background:#111;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .perfil-trainer-name{font-size:13px;font-weight:600;color:#111}
 .perfil-trainer-role{font-size:11px;color:#bbb}
@@ -345,7 +345,7 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 .perfil-data-label{font-size:12px;color:#bbb;font-weight:500}
 .perfil-data-val{font-size:13px;font-weight:600;color:#111;text-align:right}
 .perfil-data-val.green{color:#16a34a}
-.perfil-action-btn{width:100%;height:50px;border-radius:12px;border:1.5px solid #eaeae6;background:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#111;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:all .15s}
+.perfil-action-btn{width:100%;height:50px;border-radius:14px;border:1.5px solid #eaeae6;background:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#111;cursor:pointer;display:flex;align-items:center;justify-content:flex-start;gap:11px;padding:0 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:all .15s}
 .perfil-action-btn:active{opacity:.8}
 .perfil-action-btn.danger{color:#ef4444;border-color:rgba(239,68,68,.2);background:#fff5f5}
 .perfil-since{font-size:12px;color:#bbb;text-align:center;margin-top:4px;margin-bottom:16px}
@@ -1483,6 +1483,7 @@ function switchTab(tab){
   state.tab=tab;
   state.selectedDay=todayIdx();
   state.weekOffset=0;
+  state._resetScroll=true;
   state.showWeekReorder=false;
   ['home','train','diet','progress'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('active',x===tab));
   // Home has inline header, other tabs use the app-bar header
@@ -1543,6 +1544,11 @@ function openExHistoryBtn(btn){
 
 function render(){
   const c=document.getElementById('main-content');
+  // Conservar la posición de scroll entre re-renders (no saltar arriba al pulsar botones).
+  // Cada pantalla scrollea en un div interno [style*="overflow-y:auto"].
+  const _prevSc=c.querySelector('[style*="overflow-y:auto"]');
+  const _keepTop=state._resetScroll?0:(_prevSc?_prevSc.scrollTop:0);
+  state._resetScroll=false;
   if(state.tab==='home'){
     c.style.overflow='hidden';
     c.innerHTML=renderHome();
@@ -1555,6 +1561,10 @@ function render(){
     else if(state.tab==='diet')c.innerHTML=renderDiet();
     else if(state.tab==='progress'){c.innerHTML=renderProgreso();hydrateRevisionPhotos();markRevisionsSeen();}
   }
+  // Restaurar el scroll en el nuevo DOM (ahora y tras el primer paint, por robustez).
+  const _newSc=c.querySelector('[style*="overflow-y:auto"]');
+  if(_newSc)_newSc.scrollTop=_keepTop;
+  requestAnimationFrame(()=>{const s=c.querySelector('[style*="overflow-y:auto"]');if(s)s.scrollTop=_keepTop;});
   // Si el panel de cheats está abierto, mantenerlo sincronizado
   const cp=document.getElementById('cheats-panel');
   if(cp&&cp.classList.contains('open')){
@@ -6494,14 +6504,15 @@ async function renderPerfil(){
   <!-- Hero: Avatar + nombre + entrenador -->
   <div class="perfil-hero">
     <div class="perfil-avatar">${nameInitials}</div>
-    <div class="perfil-name">${clientData.name.split(' ')[0]}</div>
+    <div class="perfil-name">${clientData.name}</div>
     <div class="perfil-email">${clientData.email||appUser?.email||''}</div>
-    <div class="perfil-trainer-row">
+    <div class="perfil-trainer-row" ${coachPhone?`onclick="openWhatsApp('${coachPhone}','${coachName}')" style="cursor:pointer"`:''}>
       <div class="perfil-trainer-av">${coachInitials}</div>
-      <div>
+      <div style="flex:1;text-align:left">
         <div class="perfil-trainer-name">${coachName}</div>
         <div class="perfil-trainer-role">Tu entrenador personal</div>
       </div>
+      ${coachPhone?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>':''}
     </div>
   </div>
 
@@ -6539,7 +6550,7 @@ async function renderPerfil(){
 
   <!-- Acciones -->
   ${coachPhone?`<button class="perfil-action-btn" onclick="openWhatsApp('${coachPhone}','${coachName}')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     Contactar con ${coachName.split(' ')[0]}
   </button>`:''}
   <button class="perfil-action-btn" onclick="openExportConfirm()">
@@ -6567,7 +6578,7 @@ function clientBillingCardHtml(){
 
   if(st.state==='saldado'){
     return '<div class="perfil-data-card" style="text-align:center">'+
-      '<div style="width:46px;height:46px;border-radius:50%;background:#f0fdf4;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#16a34a;font-size:24px;">✓</div>'+
+      '<div style="width:46px;height:46px;border-radius:50%;background:#f0fdf4;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#16a34a;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111;margin-bottom:4px;">Plan completado</div>'+
       '<div style="font-size:12.5px;color:#999;">Has pagado los '+st.total+' pagos · '+(Number(b.amount)*b.num_payments).toLocaleString('es-ES')+' € en total</div>'+
     '</div>';
@@ -6590,12 +6601,12 @@ function clientBillingCardHtml(){
 
   const payBtn=isPay
     ? (b.pay_link
-        ? '<button onclick="payBilling()" style="width:100%;padding:13px;font-size:14px;font-weight:700;background:#635bff;color:#fff;border:none;border-radius:13px;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;">💳 Pagar con Stripe</button>'
+        ? '<button onclick="payBilling()" style="width:100%;padding:13px;font-size:14px;font-weight:700;background:#635bff;color:#fff;border:none;border-radius:13px;cursor:pointer;font-family:\'DM Sans\',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Pagar con Stripe</button>'
         : '<div style="font-size:12px;color:#999;text-align:center;padding:10px;background:#f5f5f3;border-radius:11px;">Tu entrenador aún no ha puesto el enlace de pago.</div>')
     : '';
 
   const subline=isPay
-    ? '📅 Pago '+st.next.n+' de '+st.total+' · vence '+billingFmtDate(due)
+    ? 'Pago '+st.next.n+' de '+st.total+' · vence '+billingFmtDate(due)
     : (st.paidCount>0?('Pago '+st.paidCount+' hecho · próximo el '+billingFmtDate(due)):('Próximo pago el '+billingFmtDate(due)));
 
   return '<div class="perfil-data-card">'+
