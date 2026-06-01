@@ -581,9 +581,6 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
     </div>
     <div class="detail-panel-title">Mi perfil</div>
-    <div onclick="abrirCalendarioCliente()" title="Mis citas" style="margin-left:auto;width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-    </div>
   </div>
   <div class="detail-panel-body">
     <div style="padding:16px 16px 80px" id="perfil-content"></div>
@@ -726,8 +723,6 @@ let metricsCache={}; // date -> daily_metrics row
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
 let revisionsCache=[]; // array de progress_photos (revisiones), cada una con ._photos
-// Estado de la comparativa "Antes vs ahora" (interactiva): revisión y foto elegidas por lado
-let avaA=null, avaB=null, avaIdxA=0, avaIdxB=0;
 let weightHistory=[]; // [{date,w}] historial COMPLETO de peso para la gráfica de Progreso
 let exerciseNotesCache={}; // session_id -> { exercise_name: note }
 let notifBadge=0;
@@ -1617,8 +1612,6 @@ function renderHome(){
       checkinBannerHtml()+
       // Aviso de cuota pendiente/vencida
       billingBannerHtml()+
-      // Próximas citas (agenda)
-      apptCitasHomeHtml()+
       // Week strip
       '<div style="padding:0 16px;margin-bottom:12px;display:flex;gap:5px;">'+weekStrip+'</div>'+
       // Metric cards 2x2
@@ -2893,68 +2886,6 @@ function setWeightRange(r){
   render();
 }
 
-// ── Tarjeta "Antes vs ahora" interactiva ──
-// Eliges la semana de cada lado (selector) y la foto exacta (miniaturas).
-function avaRev(id){ return (revisionsCache||[]).find(r=>r.id===id); }
-
-function avaCardInner(){
-  const revs=revisionsCache||[];
-  const withPhotos=revs.filter(r=>(r._photos||[]).length>0);
-  if(withPhotos.length<2) return '';
-  const ids=withPhotos.map(r=>r.id);
-  // Defaults / validación: A = más antigua, B = más reciente
-  if(!ids.includes(avaB)){ avaB=withPhotos[0].id; avaIdxB=0; }
-  if(!ids.includes(avaA)){ avaA=withPhotos[withPhotos.length-1].id; avaIdxA=0; }
-  const ra=avaRev(avaA), rb=avaRev(avaB);
-  const fa=(ra._photos||[]); if(avaIdxA>=fa.length) avaIdxA=0;
-  const fb=(rb._photos||[]); if(avaIdxB>=fb.length) avaIdxB=0;
-
-  const opt=(selId)=>withPhotos.map(r=>'<option value="'+r.id+'" '+(r.id===selId?'selected':'')+'>Semana '+(r.revision_week!=null?r.revision_week:'—')+(r.weight_kg!=null?(' · '+r.weight_kg+' kg'):'')+'</option>').join('');
-
-  // Variación de peso y semanas
-  let deltaHtml='';
-  if(ra&&rb&&ra.weight_kg!=null&&rb.weight_kg!=null){
-    const d=Number(rb.weight_kg)-Number(ra.weight_kg);
-    const sem=(ra.revision_week!=null&&rb.revision_week!=null)?Math.abs(rb.revision_week-ra.revision_week):null;
-    const txt=(d>0?'+':'')+(Math.round(d*10)/10)+' kg'+(sem!=null?(' en '+sem+' semana'+(sem!==1?'s':'')):'');
-    deltaHtml='<div style="display:flex;justify-content:center;margin-top:12px"><span style="font-size:12px;font-weight:700;color:#111;background:#f0f0ec;padding:6px 14px;border-radius:10px">'+txt+'</span></div>';
-  }
-
-  const sideCol=(side)=>{
-    const rev=side==='A'?ra:rb;
-    const idx=side==='A'?avaIdxA:avaIdxB;
-    const selId=side==='A'?avaA:avaB;
-    const tag=side==='A'?'Antes':'Ahora';
-    const fotos=rev._photos||[];
-    const sel=fotos[idx]||fotos[0]||{};
-    const thumbs=fotos.length>1
-      ? '<div style="display:flex;gap:5px;overflow-x:auto;margin-top:6px;scrollbar-width:none;padding-bottom:2px">'+
-          fotos.map((f,i)=>'<div onclick="avaSetPhoto(\''+side+'\','+i+')" style="width:34px;height:44px;border-radius:6px;overflow:hidden;flex-shrink:0;cursor:pointer;border:2px solid '+(i===idx?'#16a34a':'#eaeae6')+'"><img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>').join('')+
-        '</div>'
-      : '';
-    return '<div style="flex:1;min-width:0">'+
-      '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;text-align:center">'+tag+'</div>'+
-      '<select onchange="avaSetRev(\''+side+'\',this.value)" style="width:100%;font-size:11px;font-weight:700;color:#111;background:#f5f5f3;border:1.5px solid #eaeae6;border-radius:9px;padding:7px 8px;margin-bottom:8px;font-family:\'DM Sans\',sans-serif;outline:none;cursor:pointer">'+opt(selId)+'</select>'+
-      '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
-        '<img data-revphoto="'+escHtml(sel.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
-      '</div>'+
-      (sel.label?'<div style="font-size:9px;color:#888;font-weight:600;margin-top:4px;text-align:center;line-height:1.25;word-break:break-word">'+escHtml(sel.label)+'</div>':'')+
-      thumbs+
-    '</div>';
-  };
-
-  return '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Antes vs ahora</div>'+
-    '<div style="display:flex;gap:12px;align-items:flex-start">'+sideCol('A')+sideCol('B')+'</div>'+
-    deltaHtml;
-}
-
-function avaRefresh(){
-  const el=document.getElementById('ava-card');
-  if(el){ el.innerHTML=avaCardInner(); hydrateRevisionPhotos(); }
-}
-function avaSetRev(side,id){ if(side==='A'){avaA=id;avaIdxA=0;}else{avaB=id;avaIdxB=0;} avaRefresh(); }
-function avaSetPhoto(side,idx){ if(side==='A')avaIdxA=idx; else avaIdxB=idx; avaRefresh(); }
-
 function renderProgreso(){
   const revs=revisionsCache||[];
 
@@ -3022,19 +2953,6 @@ function renderProgreso(){
   // 0b) Vista de programa/bloque
   html+=programBlockHtml();
 
-  // 0c) Acceso a cheats (card arriba para que se vea y se use)
-  const nCheats=(gymData.cheats||[]).length;
-  html+='<div onclick="openCheats()" style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:11px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
-    '<span style="display:flex;align-items:center;gap:11px">'+
-      '<span style="font-size:20px">🍔</span>'+
-      '<span style="text-align:left">'+
-        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
-        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
-      '</span>'+
-    '</span>'+
-    '<span style="font-size:20px;color:#ccc">›</span>'+
-  '</div>';
-
   // 1) Tarjeta resumen
   const arrow = delta==null?'':(delta<0?'↓':delta>0?'↑':'→');
   const deltaTxt = delta==null?'—':(arrow+' '+Math.abs(delta)+' kg');
@@ -3086,14 +3004,95 @@ function renderProgreso(){
     '</div>'+
   '</div>';
 
-  // 3) Antes vs ahora (si hay 2+ revisiones con foto) — interactivo
+  // 3) Antes vs ahora (si hay 2+ revisiones con foto)
   const withPhotos=revs.filter(r=>(r._photos||[]).length>0);
   if(withPhotos.length>=2){
-    html+='<div id="ava-card" style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+avaCardInner()+'</div>';
+    const ahora=withPhotos[0];
+    const antes=withPhotos[withPhotos.length-1];
+    const colHtml=(rev,tag)=>{
+      const f=(rev._photos||[])[0]||{};
+      return '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;text-align:center">'+tag+'</div>'+
+        '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
+          '<img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
+        '</div>'+
+        '<div style="font-size:10px;color:#888;font-weight:700;margin-top:5px;text-align:center">Semana '+(rev.revision_week!=null?rev.revision_week:'—')+'</div>'+
+      '</div>';
+    };
+    html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+      '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Antes vs ahora</div>'+
+      '<div style="display:flex;gap:10px;align-items:flex-start">'+colHtml(antes,'Antes')+
+        '<div style="align-self:center;font-size:18px;color:#d4d4cc;padding-top:14px">→</div>'+
+        colHtml(ahora,'Ahora')+'</div>'+
+    '</div>';
+  }
+
+  // Revisiones
+  html+='<div style="font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px">Revisiones</div>';
+
+  if(!revs.length){
+    html+='<div style="background:#fff;border:1.5px dashed #e0e0d8;border-radius:18px;padding:34px 22px;text-align:center">'+
+      '<div style="font-size:36px;margin-bottom:12px">📸</div>'+
+      '<div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px">Aún no hay revisiones</div>'+
+      '<div style="font-size:12.5px;color:#bbb;line-height:1.55">Cuando hagas una revisión con tu entrenador,<br>aquí verás tus fotos, tu peso y sus notas.</div>'+
+    '</div>';
+  } else {
+    revs.forEach(rev=>{
+      const fecha=fmtRevDate(rev.revision_date);
+      const fotos=rev._photos||[];
+      const hasNote=!!(rev.notes&&String(rev.notes).trim());
+      html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">';
+      // Cabecera de la revisión
+      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:'+((hasNote||fotos.length)?'13px':'0')+'">'+
+        '<div>'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111;letter-spacing:-.3px;line-height:1">Semana '+(rev.revision_week!=null?rev.revision_week:'—')+'</div>'+
+          (fecha?'<div style="font-size:11px;color:#bbb;font-weight:600;margin-top:3px">'+fecha+'</div>':'')+
+        '</div>'+
+        (rev.weight_kg!=null?'<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:7px 13px;text-align:center;flex-shrink:0">'+
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#16a34a;line-height:1">'+rev.weight_kg+'</div>'+
+          '<div style="font-size:8px;font-weight:800;color:rgba(22,163,74,.7);text-transform:uppercase;letter-spacing:.06em;margin-top:1px">kg</div>'+
+        '</div>':'')+
+      '</div>';
+      // Nota del entrenador
+      if(hasNote){
+        html+='<div style="background:#f5f5f3;border-radius:12px;padding:11px 13px;margin-bottom:'+(fotos.length?'13px':'0')+'">'+
+          '<div style="font-size:9px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">📋 Nota de tu entrenador</div>'+
+          '<div style="font-size:13px;color:#444;line-height:1.5;white-space:pre-wrap">'+escHtml(rev.notes)+'</div>'+
+        '</div>';
+      }
+      // Fotos
+      if(fotos.length){
+        html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+        fotos.forEach(f=>{
+          html+='<div>'+
+            '<div style="position:relative;width:100%;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#f0f0ec;cursor:pointer" onclick="openPhotoLightbox(this.querySelector(\'img\'))">'+
+              '<img data-revphoto="'+escHtml(f.photo_path||'')+'" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'+
+            '</div>'+
+            (f.label?'<div style="font-size:9px;color:#888;font-weight:600;margin-top:4px;text-align:center;line-height:1.25;word-break:break-word">'+escHtml(f.label)+'</div>':'')+
+          '</div>';
+        });
+        html+='</div>';
+      } else {
+        html+='<div style="font-size:12px;color:#ccc;text-align:center;padding:6px 0">Sin fotos en esta revisión todavía</div>';
+      }
+      html+='</div>';
+    });
   }
 
   html+='</div>'; // cierra el contenido con padding lateral
 
+  // Botón de banda a banda → abre los cheats a pantalla completa
+  const nCheats=(gymData.cheats||[]).length;
+  html+='<button onclick="openCheats()" style="width:100%;border:none;border-top:1.5px solid #eaeae6;background:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-top:8px">'+
+    '<span style="display:flex;align-items:center;gap:11px">'+
+      '<span style="font-size:18px">🍔</span>'+
+      '<span style="text-align:left">'+
+        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
+        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
+      '</span>'+
+    '</span>'+
+    '<span style="font-size:20px;color:#ccc">›</span>'+
+  '</button>';
 
   html+='</div>'; // cierra wrapper exterior
   return html;
@@ -5680,7 +5679,7 @@ async function submitOnboarding(){
   if(!code){showToast('Introduce el código','red');return;}
   const btn=document.getElementById('btn-ob-send');
   btn.innerHTML='<div class="spinner" style="margin:0 auto"></div>';btn.disabled=true;
-  const {data:coach,error:coachErr}=await sb.from('coaches').select('*').eq('code',code).maybeSingle();
+  const {data:coach,error:coachErr}=await sb.from('coaches_public').select('*').eq('code',code).maybeSingle();
   if(coachErr||!coach){
     btn.innerHTML='Enviar solicitud';btn.disabled=false;
     const errEl=document.getElementById('ob-code-err');
@@ -5862,139 +5861,6 @@ function formatScheduledDate(dateStr){
   return ano===anoHoy?(dia+' '+mes):(dia+' '+mes+' '+ano);
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// CITAS / AGENDA (cliente) — ve y gestiona las citas que propone el entrenador
-// ══════════════════════════════════════════════════════════════════════════
-const APPT_TYPES_C={revision:{label:'Revisión',color:'#16a34a',bg:'#dcfce7',icon:'📋'},llamada:{label:'Llamada',color:'#a16207',bg:'#fef9c3',icon:'📞'},sesion:{label:'Sesión',color:'#1d4ed8',bg:'#dbeafe',icon:'🏋'},otro:{label:'Otro',color:'#6b6b66',bg:'#ececec',icon:'📌'}};
-function _apptT(t){return APPT_TYPES_C[t]||APPT_TYPES_C.otro;}
-function _apptD(a){return new Date(a.status==='contrapropuesta'&&a.client_proposed_at?a.client_proposed_at:a.starts_at);}
-function _apptFFecha(d){return d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});}
-function _apptFHora(d){return d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});}
-let appointmentsCache=[];
-let _miCal=new Date(); _miCal.setDate(1);
-
-async function loadAppointments(){
-  if(!clientData||!clientData.id){appointmentsCache=[];return;}
-  try{const {data,error}=await sb.from('appointments').select('*').eq('client_id',clientData.id).order('starts_at',{ascending:true});appointmentsCache=error?[]:(data||[]);}catch(e){appointmentsCache=[];}
-}
-
-// Tarjeta de próximas citas en el Inicio (aceptar / proponer otra / rechazar)
-function apptCitasHomeHtml(){
-  const ahora=Date.now()-3600000;
-  const list=appointmentsCache.filter(a=>a.status!=='rechazada'&&a.status!=='cancelada'&&_apptD(a).getTime()>ahora);
-  if(!list.length) return '';
-  const card=(a)=>{
-    const T=_apptT(a.type), d=_apptD(a);
-    const head='<div style="display:flex;align-items:center;gap:10px">'+
-      '<div style="width:36px;height:36px;border-radius:10px;background:'+T.bg+';color:'+T.color+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px">'+T.icon+'</div>'+
-      '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:#111">'+T.label+(a.title?' · '+escHtml(a.title):'')+'</div>'+
-        '<div style="font-size:12px;color:#888">'+_apptFFecha(d)+' · '+_apptFHora(d)+(a.location?' · '+escHtml(a.location):'')+'</div></div>'+
-      (a.status==='aceptada'?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div>';
-    let body='';
-    if(a.notes){ body+='<div style="font-size:12px;color:#666;background:#f5f5f3;border-radius:8px;padding:8px 10px;margin-top:9px">'+escHtml(a.notes)+'</div>'; }
-    if(a.status==='pendiente'){
-      body+='<div style="font-size:12px;color:#92704a;background:#fef3c7;border-radius:8px;padding:7px 10px;margin:10px 0">Pol te propone esta cita. ¿Te va bien?</div>'+
-        '<div style="display:flex;gap:7px">'+
-          '<button onclick="apptAccept(\''+a.id+'\')" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:10px;height:40px;font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Aceptar</button>'+
-          '<button onclick="apptProponer(\''+a.id+'\')" style="flex:1;background:#fff;color:#111;border:1.5px solid #eaeae6;border-radius:10px;height:40px;font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Otra hora</button>'+
-          '<button onclick="apptRechazar(\''+a.id+'\')" style="background:#fff;color:#ef4444;border:1.5px solid #f3c4c4;border-radius:10px;height:40px;padding:0 13px;font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">No</button>'+
-        '</div>';
-    } else if(a.status==='contrapropuesta'){
-      body+='<div style="font-size:12px;color:#666;background:#f5f5f3;border-radius:8px;padding:7px 10px;margin-top:9px">Has propuesto otra hora. Esperando a Pol.</div>';
-    }
-    const border=a.status==='pendiente'?'#fde68a':a.status==='aceptada'?'#cfe9d8':'#eaeae6';
-    const bg=a.status==='pendiente'?'#fffbeb':a.status==='aceptada'?'#f0fdf4':'#fff';
-    return '<div style="border:1px solid '+border+';background:'+bg+';border-radius:13px;padding:13px;margin-bottom:10px">'+head+body+'</div>';
-  };
-  return '<div style="padding:0 16px;margin-bottom:12px"><div style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:15px">'+
-    '<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Próximas citas</div>'+
-    list.map(card).join('')+'</div></div>';
-}
-
-async function apptAccept(id){
-  try{await sb.from('appointments').update({status:'aceptada',proposed_by:'coach',seen_by_coach:false,seen_by_client:true}).eq('id',id);}catch(e){}
-  await loadAppointments(); render(); showToast('✓ Cita aceptada','green');
-}
-async function apptRechazar(id){
-  if(!confirm('¿Rechazar esta cita?')) return;
-  try{await sb.from('appointments').update({status:'rechazada',seen_by_coach:false,seen_by_client:true}).eq('id',id);}catch(e){}
-  await loadAppointments(); render(); showToast('Cita rechazada');
-}
-function apptProponer(id){
-  const a=appointmentsCache.find(x=>x.id===id); if(!a) return;
-  let ov=document.getElementById('appt-prop-ov');
-  if(!ov){ov=document.createElement('div');ov.id='appt-prop-ov';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:760;display:flex;align-items:center;justify-content:center;padding:20px';ov.onclick=(e)=>{if(e.target===ov)ov.style.display='none';};document.body.appendChild(ov);}
-  const d=new Date(a.starts_at); const fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const inp='border:1.5px solid #eaeae6;border-radius:10px;padding:11px;font-size:15px;width:100%;box-sizing:border-box;font-family:\'DM Sans\',sans-serif';
-  ov.innerHTML='<div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:340px">'+
-    '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:#111;margin-bottom:14px">Proponer otra hora</div>'+
-    '<div style="font-size:11px;color:#888;margin-bottom:5px">Fecha</div><input type="date" id="prop-fecha" value="'+fecha+'" style="'+inp+';margin-bottom:12px">'+
-    '<div style="font-size:11px;color:#888;margin-bottom:5px">Hora</div><input type="time" id="prop-hora" value="18:00" style="'+inp+';margin-bottom:16px">'+
-    '<div style="display:flex;gap:8px"><button onclick="document.getElementById(\'appt-prop-ov\').style.display=\'none\'" style="flex:1;height:42px;border-radius:10px;background:#f5f5f3;border:1.5px solid #eaeae6;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">Cancelar</button>'+
-    '<button onclick="apptEnviarPropuesta(\''+id+'\')" style="flex:1;height:42px;border-radius:10px;background:#16a34a;color:#fff;border:none;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">Enviar</button></div></div>';
-  ov.style.display='flex';
-}
-async function apptEnviarPropuesta(id){
-  const f=document.getElementById('prop-fecha').value, h=document.getElementById('prop-hora').value;
-  if(!f||!h){showToast('Elige fecha y hora');return;}
-  const iso=new Date(f+'T'+h).toISOString();
-  try{await sb.from('appointments').update({status:'contrapropuesta',client_proposed_at:iso,proposed_by:'client',seen_by_coach:false,seen_by_client:true}).eq('id',id);}catch(e){}
-  const ov=document.getElementById('appt-prop-ov'); if(ov)ov.style.display='none';
-  await loadAppointments(); render(); showToast('✓ Propuesta enviada a Pol','green');
-}
-
-// Calendario del cliente (se abre desde Perfil)
-function abrirCalendarioCliente(){
-  _miCal=new Date(); _miCal.setDate(1);
-  let s=document.getElementById('mical-screen');
-  if(!s){s=document.createElement('div');s.id='mical-screen';s.style.cssText='position:fixed;inset:0;z-index:720;background:#f5f5f3;display:flex;flex-direction:column;overflow:hidden';document.body.appendChild(s);}
-  renderMiCalendario();
-  s.style.transform='translateX(100%)';s.style.transition='transform .28s cubic-bezier(0.32,0.72,0,1)';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{s.style.transform='translateX(0)';}));
-}
-function cerrarMiCalendario(){const s=document.getElementById('mical-screen');if(!s)return;s.style.transform='translateX(100%)';setTimeout(()=>{if(s&&s.parentNode)s.remove();},280);}
-function miCalMes(delta){_miCal.setMonth(_miCal.getMonth()+delta);renderMiCalendario();}
-function renderMiCalendario(){
-  const s=document.getElementById('mical-screen'); if(!s)return;
-  const y=_miCal.getFullYear(),m=_miCal.getMonth();
-  const monthName=_miCal.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
-  let lead=new Date(y,m,1).getDay();lead=(lead===0?6:lead-1);
-  const dim=new Date(y,m+1,0).getDate();
-  const today=new Date();today.setHours(0,0,0,0);
-  const byDay={};
-  appointmentsCache.forEach(a=>{if(a.status==='rechazada'||a.status==='cancelada')return;const d=_apptD(a);if(d.getFullYear()===y&&d.getMonth()===m)(byDay[d.getDate()]=byDay[d.getDate()]||[]).push(a);});
-  const DOW=['L','M','X','J','V','S','D'];
-  let cells='';
-  for(let i=0;i<lead;i++)cells+='<div></div>';
-  for(let dn=1;dn<=dim;dn++){
-    const isToday=(y===today.getFullYear()&&m===today.getMonth()&&dn===today.getDate());
-    const items=(byDay[dn]||[]).sort((a,b)=>_apptD(a)-_apptD(b));
-    const dots=items.slice(0,3).map(a=>'<span style="width:6px;height:6px;border-radius:50%;background:'+_apptT(a.type).color+';display:inline-block;margin:1px"></span>').join('');
-    cells+='<div style="min-height:54px;border:1.5px solid '+(isToday?'#16a34a':'#eaeae6')+';border-radius:9px;padding:5px;background:#fff;text-align:center">'+
-      '<div style="font-size:12px;font-weight:'+(isToday?'700':'600')+';color:'+(isToday?'#16a34a':'#444')+'">'+dn+'</div><div>'+dots+'</div></div>';
-  }
-  const ahora=Date.now()-3600000;
-  const prox=appointmentsCache.filter(a=>a.status!=='rechazada'&&a.status!=='cancelada'&&_apptD(a).getTime()>ahora).slice(0,8);
-  const proxHtml=prox.map(a=>{const T=_apptT(a.type),d=_apptD(a);const est=a.status==='aceptada'?'Aceptada':a.status==='contrapropuesta'?'Esperando a Pol':'Pendiente';return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0ec"><div style="width:30px;height:30px;border-radius:8px;background:'+T.bg+';color:'+T.color+';display:flex;align-items:center;justify-content:center;font-size:14px">'+T.icon+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#111">'+T.label+'</div><div style="font-size:11px;color:#888">'+_apptFFecha(d)+' · '+_apptFHora(d)+(a.location?' · '+escHtml(a.location):'')+'</div></div><span style="font-size:10px;font-weight:700;color:#888;flex-shrink:0">'+est+'</span></div>';}).join('')||'<div style="font-size:12px;color:#bbb;padding:8px 0">No tienes citas próximas.</div>';
-  const DOWh=DOW.map(d=>'<div style="text-align:center;font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase">'+d+'</div>').join('');
-  s.innerHTML=
-    '<div style="flex-shrink:0;background:#fff;border-bottom:1.5px solid #eaeae6;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:12px">'+
-      '<button onclick="cerrarMiCalendario()" style="width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>'+
-      '<div style="font-size:17px;font-weight:700;color:#111">Mis citas</div>'+
-    '</div>'+
-    '<div style="flex:1;overflow-y:auto;padding:18px 16px 60px;scrollbar-width:none">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
-        '<button onclick="miCalMes(-1)" style="width:32px;height:32px;border-radius:9px;border:1.5px solid #eaeae6;background:#fff;cursor:pointer">‹</button>'+
-        '<div style="font-size:16px;font-weight:700;color:#111;text-transform:capitalize">'+monthName+'</div>'+
-        '<button onclick="miCalMes(1)" style="width:32px;height:32px;border-radius:9px;border:1.5px solid #eaeae6;background:#fff;cursor:pointer">›</button>'+
-      '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px">'+DOWh+'</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:22px">'+cells+'</div>'+
-      '<div style="font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Próximas</div>'+
-      proxHtml+
-    '</div>';
-}
-
 async function initApp(user){
   appUser=user;
   try{
@@ -6031,46 +5897,6 @@ async function initApp(user){
     // y archivamos el anterior antes de cargar los datos del cliente.
     await promoteScheduledPlans(client.id);
 
-    await reloadClientData(client);
-
-    // Actualizar UI
-    const now=new Date();
-    const nombre=client.name?.split(' ')[0]||'Hugo';
-    const headerTitle=document.querySelector('.header-title');
-    if(headerTitle)headerTitle.textContent=nombre;
-    document.getElementById('greeting').textContent=greeting();
-    document.getElementById('header-date').textContent=DAYS[todayIdx()]+', '+String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
-    state.trainSession=SESSIONS.includes(getWeekPlan(weekKey())[todayIdx()])?getWeekPlan(weekKey())[todayIdx()]:SESSIONS[0];
-
-    showScreen('app');
-    document.getElementById('main-content').style.overflow='hidden';
-    const hdr=document.querySelector('.header');
-    if(hdr)hdr.classList.add('hidden');
-    render();
-    setTimeout(calcAdherence,100);
-    setupRealtime();
-    // Update avatar initial
-    const initial2=(client.name||'').charAt(0).toUpperCase()||'H';
-    document.querySelectorAll('#app-avatar').forEach(el=>{el.textContent=initial2;});
-    updateNotifBadge();
-
-  }catch(e){
-    console.error('initApp error:',e);
-    // Si la excepción ocurrió antes de verificar el cliente, cerramos sesión por seguridad
-    if(!clientData){
-      await sb.auth.signOut().catch(()=>{});
-      appUser=null;
-      showScreen('auth');
-      setTimeout(()=>showAuthErr('No se pudo iniciar la app. Inténtalo de nuevo.'),50);
-    } else {
-      // Sesión válida pero falló la carga de datos (red, etc.): mantener sesión y
-      // ofrecer reintento en la pantalla de carga (sin obligar a iniciar sesión otra vez)
-      showLoadError(navigator.onLine===false);
-    }
-  }
-}
-
-async function reloadClientData(client){
     // Cargar datos en paralelo
     const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
@@ -6143,9 +5969,6 @@ async function reloadClientData(client){
     // Cargar revisiones (fotos + notas que sube el entrenador) para la pestaña Progreso
     await loadRevisions(client.id);
 
-    // Cargar las citas / agenda del cliente
-    await loadAppointments();
-
     // Cargar el check-in de la semana actual (si existe)
     try{
       const {data:ci}=await sb.from('weekly_checkins')
@@ -6192,6 +6015,42 @@ async function reloadClientData(client){
 
     // Reconstruir gymData compatible
     rebuildGymData();
+
+    // Actualizar UI
+    const now=new Date();
+    const nombre=client.name?.split(' ')[0]||'Hugo';
+    const headerTitle=document.querySelector('.header-title');
+    if(headerTitle)headerTitle.textContent=nombre;
+    document.getElementById('greeting').textContent=greeting();
+    document.getElementById('header-date').textContent=DAYS[todayIdx()]+', '+String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
+    state.trainSession=SESSIONS.includes(getWeekPlan(weekKey())[todayIdx()])?getWeekPlan(weekKey())[todayIdx()]:SESSIONS[0];
+
+    showScreen('app');
+    document.getElementById('main-content').style.overflow='hidden';
+    const hdr=document.querySelector('.header');
+    if(hdr)hdr.classList.add('hidden');
+    render();
+    setTimeout(calcAdherence,100);
+    setupRealtime();
+    // Update avatar initial
+    const initial2=(client.name||'').charAt(0).toUpperCase()||'H';
+    document.querySelectorAll('#app-avatar').forEach(el=>{el.textContent=initial2;});
+    updateNotifBadge();
+
+  }catch(e){
+    console.error('initApp error:',e);
+    // Si la excepción ocurrió antes de verificar el cliente, cerramos sesión por seguridad
+    if(!clientData){
+      await sb.auth.signOut().catch(()=>{});
+      appUser=null;
+      showScreen('auth');
+      setTimeout(()=>showAuthErr('No se pudo iniciar la app. Inténtalo de nuevo.'),50);
+    } else {
+      // Sesión válida pero falló la carga de datos (red, etc.): mantener sesión y
+      // ofrecer reintento en la pantalla de carga (sin obligar a iniciar sesión otra vez)
+      showLoadError(navigator.onLine===false);
+    }
+  }
 }
 
 function getWeekStart90(){
@@ -6200,37 +6059,19 @@ function getWeekStart90(){
 
 function setupRealtime(){
   if(!clientData)return;
-  const cid=clientData.id, f='client_id=eq.'+cid;
-  let ch=sb.channel('mytracc_'+cid);
-  // Tablas con columna client_id (filtradas)
-  ['daily_metrics','training_plans','workout_sessions','cheats','mesocycles','nutrition_plans','weekly_nutrition','split_adjustments','week_reorders','progress_photos','revision_notes','client_plans','client_billing','weekly_checkins','appointments'].forEach(t=>{
-    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t,filter:f},()=>{
-      if(t==='training_plans') showToast('Plan actualizado por tu entrenador ✓');
-      scheduleLiveRefresh();
-    });
-  });
-  // Tablas sin client_id directo (se limitan por RLS)
-  ['nutrition_options','revision_photos','workout_sets','exercise_notes'].forEach(t=>{
-    ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>scheduleLiveRefresh());
-  });
-  // Cambios en mi propia ficha (objetivo, pasos objetivo, revisión cada…)
-  ch=ch.on('postgres_changes',{event:'*',schema:'public',table:'clients',filter:'id=eq.'+cid},()=>scheduleLiveRefresh());
-  ch.subscribe();
-}
-function scheduleLiveRefresh(){ clearTimeout(window._lrT); window._lrT=setTimeout(liveRefresh,500); }
-async function liveRefresh(){
-  if(!clientData)return;
-  // No refrescar mientras el cliente está metiendo un dato (numpad a pantalla completa)
-  if(document.getElementById('metric-screen')) return;
-  try{
-    const {data:c}=await sb.from('clients').select('*').eq('id',clientData.id).maybeSingle();
-    if(c) clientData=c;
-    await reloadClientData(clientData);
-    if(typeof loadNotifications==='function'){ try{ await loadNotifications(); }catch(e){} }
-    render();
-    if(document.getElementById('mical-screen')) renderMiCalendario();
-    if(typeof updateNotifBadge==='function') updateNotifBadge();
-  }catch(e){ console.warn('liveRefresh:',e); }
+  sb.channel('mytracc_'+clientData.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'daily_metrics',filter:'client_id=eq.'+clientData.id},()=>{
+      sb.from('daily_metrics').select('*').eq('client_id',clientData.id).gte('date',getWeekStart90()).then(({data})=>{
+        metricsCache={};(data||[]).forEach(m=>{metricsCache[m.date]=m;});
+        rebuildGymData();if(state.tab==='home')render();
+      });
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'training_plans',filter:'client_id=eq.'+clientData.id},async()=>{
+      const {data}=await sb.from('training_plans').select('*').eq('client_id',clientData.id).eq('is_active',true).maybeSingle();
+      activePlan=data||null;rebuildGymData();render();
+      showToast('Plan actualizado por tu entrenador ✓');
+    })
+    .subscribe();
 }
 
 // ── AUTH FUNCTIONS ──
@@ -6499,7 +6340,7 @@ async function renderPerfil(){
   // Load coach
   let coachName='Tu entrenador',coachInitials='P',coachPhone=null;
   if(clientData.coach_id){
-    const {data:coach}=await sb.from('coaches').select('name,phone').eq('id',clientData.coach_id).maybeSingle();
+    const {data:coach}=await sb.from('coaches_public').select('name').eq('id',clientData.coach_id).maybeSingle();
     if(coach){coachName=coach.name;coachInitials=coach.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();coachPhone=coach.phone||null;}
   }
   // Stats
