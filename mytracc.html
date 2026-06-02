@@ -705,7 +705,7 @@ function recomputeSessions(){
 
 const DAILY_MACROS={kcal:1960,carbs:245,fat:40,protein:155};
 let openMeals={};
-let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null,swapMeal:null,guidedIdx:0};
+let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null,swapMeal:null,guidedIdx:0,cheatMonthOffset:0};
 let timerInt=null,timerSec=0,timerTotal=0;
 // ── ESTADO SUPABASE ──
 let appUser=null, clientData=null, coachData=null;
@@ -3249,7 +3249,11 @@ function renderProgreso(){
 function renderCheats(){
   const cheats=gymData.cheats||[];
   const now=new Date();
-  const year=now.getFullYear(),month=now.getMonth();
+  // Mes que se está VIENDO en el calendario (offset navegable). La semana real y el
+  // "hoy" siguen calculándose con `now`, así que el balance semanal no se mueve al navegar.
+  const viewDate=new Date(now.getFullYear(),now.getMonth()+(state.cheatMonthOffset||0),1);
+  const year=viewDate.getFullYear(),month=viewDate.getMonth();
+  const isCurrentMonth=(state.cheatMonthOffset||0)===0;
   const monthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const monthName=monthNames[month];
   const daysInMonth=new Date(year,month+1,0).getDate();
@@ -3336,7 +3340,7 @@ function renderCheats(){
   for(let d=1;d<=daysInMonth;d++){
     const fecha=d+'/'+(month+1)+'/'+year;
     const dayCheat=cheatByDay[fecha];
-    const isToday=d===now.getDate();
+    const isToday=isCurrentMonth&&d===now.getDate();
     const hasCheat=!!(dayCheat&&dayCheat.length>0);
     calGrid+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:'+(hasCheat?'pointer':'default')+';" '+
       (hasCheat?'onclick="openCheatDayModal(\''+fecha+'\')"':'')+'>'+
@@ -3353,9 +3357,11 @@ function renderCheats(){
   const calCard='<div style="margin:0 16px 14px;background:#fff;border-radius:20px;border:1.5px solid #eaeae6;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'+
       '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;">'+monthName+' '+year+'</div>'+
-      '<div style="display:flex;gap:6px;">'+
-        '<button style="width:26px;height:26px;border-radius:8px;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>'+
-        '<button style="width:26px;height:26px;border-radius:8px;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>'+
+      '<div style="display:flex;gap:6px;align-items:center;">'+
+        '<button onclick="changeCheatMonth(-1)" style="width:26px;height:26px;border-radius:8px;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>'+
+        (isCurrentMonth
+          ? '<button disabled style="width:26px;height:26px;border-radius:8px;background:#fafaf8;border:none;display:flex;align-items:center;justify-content:center;cursor:default;opacity:.4;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>'
+          : '<button onclick="changeCheatMonth(1)" style="width:26px;height:26px;border-radius:8px;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>')+
       '</div>'+
     '</div>'+
     calGrid+
@@ -4718,9 +4724,25 @@ function closeEvolucion(){
 }
 
 function openCheats(){
+  state.cheatMonthOffset=0; // siempre abrir en el mes actual
   const body=document.getElementById('cheats-panel-body');
   if(body)body.innerHTML=renderCheats();
   document.getElementById('cheats-panel').classList.add('open');
+}
+// Navegar meses del calendario de cheats (0 = actual; no se permite ir al futuro)
+function changeCheatMonth(delta){
+  let o=(state.cheatMonthOffset||0)+delta;
+  if(o>0)o=0;            // nunca al futuro
+  if(o<-60)o=-60;        // tope ~5 años atrás, por seguridad
+  state.cheatMonthOffset=o;
+  const body=document.getElementById('cheats-panel-body');
+  if(!body)return;
+  // Conservar el scroll del panel al refrescar el contenido
+  const sc=body.querySelector('[style*="overflow-y:auto"]');
+  const top=sc?sc.scrollTop:0;
+  body.innerHTML=renderCheats();
+  const sc2=body.querySelector('[style*="overflow-y:auto"]');
+  if(sc2)sc2.scrollTop=top;
 }
 function closeCheats(){
   document.getElementById('cheats-panel').classList.remove('open');
