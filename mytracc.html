@@ -1726,7 +1726,7 @@ function renderHome(){
       '<div style="padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">'+
         metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>')+
         metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>')+
-        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6.5 8h11a1 1 0 0 1 .96 1.27l-2.4 8.4A2 2 0 0 1 14.14 19H9.86a2 2 0 0 1-1.92-1.33l-2.4-8.4A1 1 0 0 1 6.5 8Z"/></svg>')+
+        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 7a5 5 0 0 0-5 5"/><path d="m12 12 2-2.5"/><circle cx="12" cy="12" r="1"/></svg>')+
         actCard+
       '</div>'+
       // Export btn
@@ -5177,7 +5177,7 @@ function openMetricModal(event,metric){
   const ICONS={
     pasos:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>',
     sueno:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
-    peso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6.5 8h11a1 1 0 0 1 .96 1.27l-2.4 8.4A2 2 0 0 1 14.14 19H9.86a2 2 0 0 1-1.92-1.33l-2.4-8.4A1 1 0 0 1 6.5 8Z"/></svg>'
+    peso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 7a5 5 0 0 0-5 5"/><path d="m12 12 2-2.5"/><circle cx="12" cy="12" r="1"/></svg>'
   };
   const color=COLORS[metric];
   const unit=UNITS[metric];
