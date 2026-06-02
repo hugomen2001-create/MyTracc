@@ -1601,6 +1601,12 @@ function renderHome(){
     const hasMetrics=w.pasos||w.sueno||w.peso;
     const isT=isCurrentWeek&&i===todayI;
     const isSel=i===di;
+    // ¿Este día ya pasó? (su fecha real es anterior a hoy a medianoche)
+    const _today0=new Date();_today0.setHours(0,0,0,0);
+    const _dayDate=new Date(getDayDate(i)+'T00:00:00');
+    const isPast=_dayDate<_today0;
+    // Día "fallado": tocaba entrenar, ya pasó, no se completó y no quedó ningún dato → rojo
+    const isMissed=isTrain_i&&isPast&&!isDone&&!hasMetrics;
     // Colores según diseño
     let bg,border,dotColor,labelColor,letterColor;
     if(isSel&&isT){
@@ -1609,6 +1615,8 @@ function renderHome(){
       bg='#111';border='#111';dotColor='#fff';labelColor='rgba(255,255,255,.7)';letterColor='#fff';
     } else if(isDone||hasMetrics){
       bg='#f7fdf8';border='rgba(22,163,74,.18)';dotColor='#16a34a';labelColor='rgba(22,163,74,.55)';letterColor='rgba(22,163,74,.7)';
+    } else if(isMissed){
+      bg='#fef2f2';border='rgba(239,68,68,.22)';dotColor='#ef4444';labelColor='rgba(239,68,68,.6)';letterColor='rgba(239,68,68,.75)';
     } else {
       bg='#fff';border='#eaeae6';dotColor='#e0e0dc';labelColor='#ccc';letterColor='#ccc';
     }
@@ -1827,9 +1835,15 @@ function renderTrain(){
         const w=wd[i]||{},done=w.sessionSaved,isT=isCurrentWeek&&i===todayI,isSel=i===di,plan=getWeekPlan(wk)[i];
         const isRest=!SESSIONS.includes(plan);
         const restPassed=isRest && ((state.weekOffset||0)<0 || i<todayI); // descanso ya pasado = "hecho"
+        // ¿Día de entreno ya pasado y sin completar? → rojo (fallado)
+        const _t0=new Date();_t0.setHours(0,0,0,0);
+        const _dd=new Date(getDayDate(i)+'T00:00:00');
+        const hasMetrics=w.pasos||w.sueno||w.peso;
+        const isMissed=!isRest && _dd<_t0 && !done && !hasMetrics;
         let bg,border,dotColor,labelColor,letterColor;
         if(isSel){bg='#111';border='1.5px solid #111';dotColor='rgba(255,255,255,.8)';labelColor='rgba(255,255,255,.7)';letterColor='#fff';}
         else if(done||restPassed){bg='#f7fdf8';border='1.5px solid rgba(22,163,74,.18)';dotColor='#16a34a';labelColor='rgba(22,163,74,.55)';letterColor='rgba(22,163,74,.7)';}
+        else if(isMissed){bg='#fef2f2';border='1.5px solid rgba(239,68,68,.22)';dotColor='#ef4444';labelColor='rgba(239,68,68,.6)';letterColor='rgba(239,68,68,.75)';}
         else{bg='#fff';border='1.5px solid #eaeae6';dotColor='#e0e0dc';labelColor='#ccc';letterColor='#ccc';}
         const typeLabel=SESSIONS.includes(plan)?plan:'DSC';
         return '<div onclick="selectTrainDay('+i+')" style="flex:1;background:'+bg+';border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:4px;border:'+border+';cursor:pointer;transition:all .15s;">'+
