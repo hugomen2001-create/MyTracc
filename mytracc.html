@@ -280,6 +280,11 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 /* TIMER */
 .timer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:800;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);padding-bottom:0}
 .timer-overlay.open{display:flex}
+/* Píldora flotante del temporizador minimizado */
+.timer-mini{position:fixed;right:14px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:790;display:none;align-items:center;gap:9px;background:#111;color:#fff;border-radius:30px;padding:9px 14px 9px 11px;box-shadow:0 6px 24px rgba(0,0,0,.28);cursor:pointer;font-family:'DM Sans',sans-serif;border:none;animation:timerMiniIn .25s cubic-bezier(.32,.72,0,1)}
+.timer-mini.show{display:flex}
+.timer-mini.urgent{background:#dc2626}
+@keyframes timerMiniIn{from{opacity:0;transform:translateY(10px) scale(.92)}to{opacity:1;transform:none}}
 .timer-box{background:#fff;border-radius:32px 32px 0 0;padding:20px 28px calc(40px + env(safe-area-inset-bottom));text-align:center;width:100%;max-width:430px;box-shadow:0 -8px 40px rgba(0,0,0,0.15)}
 .timer-svg-wrap{position:relative;width:220px;height:220px;margin:0 auto 4px}
 .timer-svg-wrap svg{width:220px;height:220px;transform:rotate(-90deg)}
@@ -630,7 +635,13 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 
 <div class="timer-overlay" id="timer-overlay" onclick="closeTimerOutside(event)">
   <div class="timer-box">
-    <div style="width:40px;height:4px;background:#e0e0dc;border-radius:2px;margin:0 auto 18px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="width:40px"></div>
+      <div style="width:40px;height:4px;background:#e0e0dc;border-radius:2px"></div>
+      <button onclick="minimizeTimer()" title="Minimizar" style="width:40px;height:32px;border:none;background:transparent;color:#bbb;cursor:pointer;display:flex;align-items:center;justify-content:flex-end">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
 
     <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Descansando</div>
     <div style="font-size:15px;font-weight:700;color:#111;min-height:22px;margin-bottom:20px;letter-spacing:-0.2px" id="timer-ex-name"></div>
@@ -652,6 +663,15 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
     </div>
   </div>
 </div>
+
+<!-- Mini-timer flotante (cuando está minimizado) -->
+<button class="timer-mini" id="timer-mini" onclick="restoreTimer()">
+  <svg width="26" height="26" viewBox="0 0 36 36" style="flex-shrink:0;transform:rotate(-90deg)">
+    <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/>
+    <circle id="timer-mini-ring" cx="18" cy="18" r="15" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="0"/>
+  </svg>
+  <span id="timer-mini-time" style="font-size:15px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums">2:00</span>
+</button>
 
 <div id="metric-overlay" class="metric-overlay" onclick="closeMetricModal(event)">
   <div class="metric-sheet" id="metric-sheet" onclick="event.stopPropagation()">
@@ -4506,6 +4526,7 @@ function startTimerWithCallback(mins,exName,onFinish){
   timerCallbackFn=onFinish;
   document.getElementById('timer-ex-name').textContent=timerExName;
   updateTimerDisplay();updateTimerRing();
+  hideTimerMini();
   document.getElementById('timer-overlay').classList.add('open');
   // Notificar al SW para que lance notificación push al acabar
   scheduleTimerNotification(timerTotal, timerExName);
@@ -4517,18 +4538,21 @@ function timerTick(){
   if(remaining<=0){
     clearInterval(timerInt);
     timerSec=0;
-    document.getElementById('timer-display').textContent='¡Listo!';
+    const disp=document.getElementById('timer-display');
+    if(disp)disp.textContent='¡Listo!';
     updateTimerRing();
+    updateTimerMini();
     // Vibrar si el dispositivo lo soporta
     if(navigator.vibrate)navigator.vibrate([300,100,300]);
     setTimeout(()=>{
       document.getElementById('timer-overlay').classList.remove('open');
+      hideTimerMini();
       if(timerCallbackFn)timerCallbackFn();
     },1200);
     return;
   }
   timerSec=remaining;
-  updateTimerDisplay();updateTimerRing();
+  updateTimerDisplay();updateTimerRing();updateTimerMini();
 }
 
 function startTimer(mins,exName){startTimerWithCallback(mins,exName,null);}
@@ -4549,15 +4573,51 @@ function addTimerMinute(){
   timerEndTime+=60000;
   timerTotal+=60;
   timerSec=Math.ceil((timerEndTime-Date.now())/1000);
-  updateTimerDisplay();updateTimerRing();
+  updateTimerDisplay();updateTimerRing();updateTimerMini();
   scheduleTimerNotification(Math.ceil((timerEndTime-Date.now())/1000), timerExName);
 }
 function closeTimer(){
   clearInterval(timerInt);
   timerEndTime=null;
   document.getElementById('timer-overlay').classList.remove('open');
+  hideTimerMini();
 }
 function closeTimerOutside(e){if(e.target===document.getElementById('timer-overlay'))closeTimer();}
+
+// ── Minimizar / restaurar el temporizador ──
+function minimizeTimer(){
+  // Oculta el overlay pero deja el timer corriendo y muestra la píldora flotante.
+  document.getElementById('timer-overlay').classList.remove('open');
+  const mini=document.getElementById('timer-mini');
+  if(mini)mini.classList.add('show');
+  updateTimerMini();
+}
+function restoreTimer(){
+  hideTimerMini();
+  document.getElementById('timer-overlay').classList.add('open');
+  updateTimerDisplay();updateTimerRing();
+}
+function hideTimerMini(){
+  const mini=document.getElementById('timer-mini');
+  if(mini){mini.classList.remove('show');mini.classList.remove('urgent');}
+}
+function updateTimerMini(){
+  const mini=document.getElementById('timer-mini');
+  if(!mini||!mini.classList.contains('show'))return;
+  const t=document.getElementById('timer-mini-time');
+  if(t){
+    if(timerSec<=0)t.textContent='¡Listo!';
+    else{const m=Math.floor(timerSec/60),s=timerSec%60;t.textContent=m+':'+s.toString().padStart(2,'0');}
+  }
+  const ring=document.getElementById('timer-mini-ring');
+  if(ring){
+    const pct=timerTotal>0?timerSec/timerTotal:0;
+    const circ=2*Math.PI*15; // r=15
+    ring.style.strokeDasharray=circ;
+    ring.style.strokeDashoffset=circ*(1-pct);
+  }
+  mini.classList.toggle('urgent',timerTotal>0&&(timerSec/timerTotal)<0.25);
+}
 
 // ── PWA: Service Worker + Notificaciones ──
 async function scheduleTimerNotification(seconds, exName){
