@@ -610,6 +610,19 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
   </div>
 </div>
 
+<!-- DÍA COMPLETO PANEL (notas del día) -->
+<div class="detail-panel" id="panel-day">
+  <div class="detail-panel-header">
+    <div class="detail-panel-back" onclick="closeDayPanel()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div class="detail-panel-title" id="day-panel-title">Tu día</div>
+  </div>
+  <div class="detail-panel-body">
+    <div style="padding:16px 16px 90px" id="day-content"></div>
+  </div>
+</div>
+
 <!-- NOTIF PANEL -->
 <div id="notif-panel" onclick="closeNotifPanel(event)">
   <div class="notif-inner" id="notif-inner" onclick="event.stopPropagation()">
@@ -763,6 +776,7 @@ let splitAdjustments=[]; // histórico de desplazamientos del split (split_adjus
 let weekReorders={}; // week_key -> plan[] (reorganización semanal desde week_reorders en Supabase)
 let metricsCache={}; // date -> daily_metrics row
 let appointmentsCache=[]; // citas del cliente (tabla appointments)
+let dayNotesCache=[]; // notas de día del cliente (tabla day_notes)
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
 let revisionsCache=[]; // array de progress_photos (revisiones), cada una con ._photos
@@ -6286,7 +6300,7 @@ async function initApp(user){
     await promoteScheduledPlans(client.id);
 
     // Cargar datos en paralelo
-    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes,apptRes]=await Promise.all([
+    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes,apptRes,dayNotesRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('daily_metrics').select('*').eq('client_id',client.id).gte('date',getWeekStart90()).order('date'),
       sb.from('workout_sessions').select('*,workout_sets(*)').eq('client_id',client.id).gte('session_date',getWeekStart90()).order('session_date'),
@@ -6295,10 +6309,12 @@ async function initApp(user){
       sb.from('nutrition_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('split_adjustments').select('*').eq('client_id',client.id).order('effective_date'),
       sb.from('week_reorders').select('*').eq('client_id',client.id),
-      sb.from('appointments').select('*').eq('client_id',client.id).order('starts_at',{ascending:true})
+      sb.from('appointments').select('*').eq('client_id',client.id).order('starts_at',{ascending:true}),
+      sb.from('day_notes').select('*').eq('client_id',client.id).order('date',{ascending:true})
     ]);
 
     appointmentsCache=(apptRes&&apptRes.data)||[];
+    dayNotesCache=(dayNotesRes&&dayNotesRes.data)||[];
 
     activePlan=planRes.data||null;
     activeMeso=mesoRes.data||null;
@@ -6831,18 +6847,23 @@ function renderAgenda(){
   for(let d=1;d<=daysInMonth;d++){
     const key=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const col=byDay[key];
+    const tieneNota=(dayNotesCache||[]).some(n=>n&&String(n.date).slice(0,10)===key);
     const isToday=isCurrentMonth&&d===now.getDate();
-    cal+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px">'+
+    cal+='<div onclick="openDayPanel(\''+key+'\')" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer">'+
       '<div style="width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:'+(isToday||col?'700':'500')+';'+
         (isToday?'background:#111;color:#fff;':col?('background:'+(col==='#16a34a'?'#f0fdf4':'#fffbeb')+';border:1.5px solid '+(col==='#16a34a'?'rgba(22,163,74,.3)':'#fde68a')+';color:'+(col==='#16a34a'?'#16a34a':'#a16207')+';'):'color:#888;')+
       '">'+d+'</div>'+
-      (col?'<div style="width:5px;height:5px;border-radius:50%;background:'+col+'"></div>':'<div style="height:5px"></div>')+
+      '<div style="display:flex;gap:2px;height:5px;align-items:center">'+
+        (col?'<div style="width:5px;height:5px;border-radius:50%;background:'+col+'"></div>':'')+
+        (tieneNota?'<div style="width:5px;height:5px;border-radius:50%;background:#7c3aed"></div>':'')+
+      '</div>'+
     '</div>';
   }
   cal+='</div>'+
     '<div style="display:flex;gap:13px;margin-top:14px;padding-top:12px;border-top:1px solid #f0f0ec;flex-wrap:wrap">'+
       '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#888"><span style="width:7px;height:7px;border-radius:50%;background:#d97706"></span>Por confirmar</span>'+
       '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#888"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a"></span>Confirmada</span>'+
+      '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#888"><span style="width:7px;height:7px;border-radius:50%;background:#7c3aed"></span>Nota</span>'+
     '</div>'+
   '</div>';
   html+=cal;
@@ -6959,6 +6980,172 @@ async function enviarContrapropuesta(id){
   cerrarContraproponer();renderAgenda();updateAgendaBadge();
   try{ await sb.from('appointments').update({status:'contrapropuesta',client_proposed_at:nuevo.toISOString(),seen_by_coach:false}).eq('id',id); showToast('Propuesta enviada','green'); }
   catch(e){ showToast('No se pudo enviar','red','Inténtalo de nuevo'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// DÍA COMPLETO + NOTAS DEL DÍA (tabla day_notes). El cliente abre cualquier día
+// del calendario, ve cita (si hay) + sus notas, y añade con tipo y privada/compartida.
+// ══════════════════════════════════════════════════════════════════════════
+const DAYNOTE_TAGS={
+  nota:{label:'Nota',emoji:'📝',color:'#111',bg:'#f5f5f3'},
+  comida:{label:'Comida',emoji:'🍽️',color:'#7c3aed',bg:'#f3f0ff'},
+  descanso:{label:'Descanso',emoji:'😴',color:'#a16207',bg:'#fef9c3'},
+  recordatorio:{label:'Recordatorio',emoji:'⏰',color:'#1d4ed8',bg:'#dbeafe'}
+};
+function daynoteTag(t){return DAYNOTE_TAGS[t]||DAYNOTE_TAGS.nota;}
+let _dayPanelDate=null; // 'YYYY-MM-DD' del día abierto
+
+function openDayPanel(dateStr){
+  _dayPanelDate=dateStr;
+  document.getElementById('panel-day').classList.add('open');
+  renderDayPanel();
+}
+function closeDayPanel(){
+  document.getElementById('panel-day').classList.remove('open');
+}
+
+function _dayFmtTitulo(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  const dias=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return dias[d.getDay()].charAt(0).toUpperCase()+dias[d.getDay()].slice(1)+' '+d.getDate()+' '+meses[d.getMonth()];
+}
+
+function renderDayPanel(){
+  const el=document.getElementById('day-content'); if(!el)return;
+  const dateStr=_dayPanelDate;
+  const titleEl=document.getElementById('day-panel-title');
+  if(titleEl)titleEl.textContent=_dayFmtTitulo(dateStr);
+
+  let html='';
+
+  // Cita de ese día (si existe), solo informativa
+  const cita=liveAppts().find(a=>{const d=apptDate(a);if(!d)return false;const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return k===dateStr;});
+  if(cita){
+    const T=apptType_C(cita.type),d=apptDate(cita);
+    const estadoTxt=cita.status==='aceptada'?'Confirmada':(cita.status==='pendiente'&&cita.proposed_by==='coach'?'Por confirmar':'Pendiente');
+    const estadoCol=cita.status==='aceptada'?['#16a34a','#dcfce7']:['#a16207','#fef9c3'];
+    html+='<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#bbb;margin:0 2px 8px">Cita</div>'+
+      '<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:14px;padding:12px 14px;margin-bottom:18px;display:flex;align-items:center;gap:11px">'+
+        '<div style="width:36px;height:36px;border-radius:10px;background:'+T.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;color:'+T.color+'">'+T.svg+'</div>'+
+        '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;color:#111">'+T.label+' · '+apptFmtHora(d)+'</div><div style="font-size:11.5px;color:#888">'+(cita.location?escHtml(cita.location):'Con tu entrenador')+'</div></div>'+
+        '<span style="font-size:10px;font-weight:700;color:'+estadoCol[0]+';background:'+estadoCol[1]+';padding:3px 9px;border-radius:6px;white-space:nowrap">'+estadoTxt+'</span>'+
+      '</div>';
+  }
+
+  // Notas de ese día
+  const notas=(dayNotesCache||[]).filter(n=>n&&String(n.date).slice(0,10)===dateStr)
+    .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px">'+
+    '<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#bbb">Mis notas</div></div>';
+  if(!notas.length){
+    html+='<div style="background:#fff;border:1.5px dashed #e0e0dc;border-radius:14px;padding:22px 16px;text-align:center;margin-bottom:14px">'+
+      '<div style="font-size:13px;color:#bbb;line-height:1.5">Aún no has apuntado nada este día.<br>Pulsa "+ Añadir nota".</div>'+
+    '</div>';
+  } else {
+    notas.forEach(n=>{
+      const T=daynoteTag(n.tag);
+      const compartida=n.shared===true;
+      html+='<div style="background:#fff;border:1.5px solid '+(compartida?'rgba(22,163,74,.25)':'#eaeae6')+';border-radius:14px;padding:13px 14px;margin-bottom:9px">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
+          '<span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:'+T.color+';background:'+T.bg+';padding:2px 8px;border-radius:6px">'+T.emoji+' '+T.label+'</span>'+
+          (compartida
+            ?'<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#16a34a;font-weight:600;margin-left:auto"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>Visible para tu entrenador</span>'
+            :'<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#bbb;margin-left:auto"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Solo yo</span>')+
+        '</div>'+
+        '<div style="font-size:13.5px;color:#111;line-height:1.45;white-space:pre-wrap">'+escHtml(n.text)+'</div>'+
+        '<div style="display:flex;gap:14px;margin-top:9px">'+
+          '<button onclick="abrirEditarNota(\''+n.id+'\')" style="background:none;border:none;padding:0;font-size:11.5px;color:#888;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">Editar</button>'+
+          '<button onclick="borrarDayNote(\''+n.id+'\')" style="background:none;border:none;padding:0;font-size:11.5px;color:#dc2626;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">Borrar</button>'+
+        '</div>'+
+      '</div>';
+    });
+  }
+
+  html+='<button onclick="abrirNuevaNota()" style="width:100%;height:48px;border-radius:14px;background:#111;color:#fff;border:none;font-size:14px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:5px">'+
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Añadir nota</button>';
+
+  el.innerHTML=html;
+}
+
+// Formulario añadir/editar nota (bottom-sheet)
+let _notaTag='nota', _notaShared=false, _notaEditId=null;
+function abrirNuevaNota(){ _notaEditId=null; _notaTag='nota'; _notaShared=false; _renderNotaForm('', _dayPanelDate); }
+function abrirEditarNota(id){
+  const n=(dayNotesCache||[]).find(x=>String(x.id)===String(id)); if(!n)return;
+  _notaEditId=id; _notaTag=n.tag||'nota'; _notaShared=n.shared===true;
+  _renderNotaForm(n.text||'', String(n.date).slice(0,10));
+}
+function _renderNotaForm(texto, dateStr){
+  let ov=document.getElementById('nota-overlay');
+  if(!ov){ov=document.createElement('div');ov.id='nota-overlay';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:860;display:flex;align-items:flex-end;justify-content:center';ov.onclick=(e)=>{if(e.target===ov)cerrarNotaForm();};document.body.appendChild(ov);}
+  const tagBtns=Object.keys(DAYNOTE_TAGS).map(k=>{
+    const T=DAYNOTE_TAGS[k],on=_notaTag===k;
+    return '<button onclick="_setNotaTag(\''+k+'\')" style="font-size:12px;font-weight:600;padding:7px 13px;border-radius:9px;border:1.5px solid '+(on?'#111':'#eaeae6')+';background:'+(on?'#111':'#f5f5f3')+';color:'+(on?'#fff':'#666')+';cursor:pointer;font-family:\'DM Sans\',sans-serif">'+T.emoji+' '+T.label+'</button>';
+  }).join('');
+  const optStyle=(on)=>'flex:1;border:1.5px solid '+(on?'#111':'#eaeae6')+';background:'+(on?'#f5f5f3':'#fff')+';border-radius:12px;padding:12px;cursor:pointer';
+  ov.innerHTML='<div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:18px 18px calc(24px + env(safe-area-inset-bottom))" onclick="event.stopPropagation()">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:18px;color:#111">'+(_notaEditId?'Editar nota':'Nueva nota')+' · '+_dayFmtTitulo(dateStr)+'</div>'+
+      '<button onclick="cerrarNotaForm()" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #eaeae6;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
+    '</div>'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;margin-bottom:8px">Tipo</div>'+
+    '<div id="nota-tags" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px">'+tagBtns+'</div>'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;margin-bottom:8px">Nota</div>'+
+    '<textarea id="nota-text" placeholder="Escribe lo que quieras recordar…" style="width:100%;min-height:80px;border:1.5px solid #eaeae6;border-radius:12px;padding:12px;font-size:14px;color:#111;box-sizing:border-box;margin-bottom:18px;font-family:\'DM Sans\',sans-serif;resize:vertical;outline:none">'+escHtml(texto)+'</textarea>'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;margin-bottom:8px">¿Quién lo ve?</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:20px">'+
+      '<div id="nota-priv" onclick="_setNotaShared(false)" style="'+optStyle(!_notaShared)+'">'+
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span style="font-size:13px;font-weight:700;color:#111">Solo yo</span></div>'+
+        '<div style="font-size:10.5px;color:#888;line-height:1.35">Privada, tu entrenador no la ve</div></div>'+
+      '<div id="nota-shar" onclick="_setNotaShared(true)" style="'+optStyle(_notaShared)+'">'+
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><span style="font-size:13px;font-weight:700;color:#111">Compartir</span></div>'+
+        '<div style="font-size:10.5px;color:#888;line-height:1.35">Tu entrenador podrá verla</div></div>'+
+    '</div>'+
+    '<button onclick="guardarDayNote()" style="width:100%;height:50px;border-radius:14px;background:#16a34a;color:#fff;border:none;font-size:14px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Guardar nota</button>'+
+  '</div>';
+  ov.style.display='flex';
+  setTimeout(()=>{const t=document.getElementById('nota-text');if(t&&!_notaEditId)t.focus();},120);
+}
+function cerrarNotaForm(){const ov=document.getElementById('nota-overlay');if(ov)ov.style.display='none';}
+function _setNotaTag(k){_notaTag=k;
+  document.querySelectorAll('#nota-tags button').forEach((b,i)=>{
+    const key=Object.keys(DAYNOTE_TAGS)[i],on=key===k;
+    b.style.background=on?'#111':'#f5f5f3';b.style.color=on?'#fff':'#666';b.style.borderColor=on?'#111':'#eaeae6';
+  });
+}
+function _setNotaShared(v){_notaShared=v;
+  const p=document.getElementById('nota-priv'),s=document.getElementById('nota-shar');
+  if(p){p.style.borderColor=!v?'#111':'#eaeae6';p.style.background=!v?'#f5f5f3':'#fff';}
+  if(s){s.style.borderColor=v?'#111':'#eaeae6';s.style.background=v?'#f5f5f3':'#fff';}
+}
+async function guardarDayNote(){
+  const texto=(document.getElementById('nota-text').value||'').trim();
+  if(!texto){showToast('Escribe algo en la nota','red');return;}
+  if(_notaEditId){
+    const n=dayNotesCache.find(x=>String(x.id)===String(_notaEditId));
+    if(n){n.text=texto;n.tag=_notaTag;n.shared=_notaShared;}
+    cerrarNotaForm();renderDayPanel();
+    try{ await sb.from('day_notes').update({text:texto,tag:_notaTag,shared:_notaShared}).eq('id',_notaEditId); }
+    catch(e){ showToast('No se pudo guardar','red'); }
+  } else {
+    const fila={client_id:clientData.id,coach_id:(coachData&&coachData.id)||null,date:_dayPanelDate,text:texto,tag:_notaTag,shared:_notaShared};
+    try{
+      const {data,error}=await sb.from('day_notes').insert(fila).select('*').single();
+      if(error){console.error(error);showToast('No se pudo guardar','red');return;}
+      dayNotesCache.push(data);
+      cerrarNotaForm();renderDayPanel();
+      // refrescar puntos del calendario de agenda si está abierto
+      const ap=document.getElementById('panel-agenda');if(ap&&ap.classList.contains('open'))renderAgenda();
+    }catch(e){showToast('No se pudo guardar','red');}
+  }
+}
+async function borrarDayNote(id){
+  const idx=dayNotesCache.findIndex(x=>String(x.id)===String(id));
+  if(idx>=0)dayNotesCache.splice(idx,1);
+  renderDayPanel();
+  const ap=document.getElementById('panel-agenda');if(ap&&ap.classList.contains('open'))renderAgenda();
+  try{ await sb.from('day_notes').delete().eq('id',id); }catch(e){}
 }
 
 // ── PERFIL PANEL ──
