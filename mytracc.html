@@ -318,9 +318,9 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 .notif-item:active{background:#f5f5f3}
 .notif-item.unread{background:rgba(22,163,74,.03)}
 .notif-icon-wrap{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
-.notif-icon-wrap.green{background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.15)}
-.notif-icon-wrap.blue{background:rgba(37,99,235,.08);border:1.5px solid rgba(37,99,235,.15)}
-.notif-icon-wrap.amber{background:rgba(217,119,6,.08);border:1.5px solid rgba(217,119,6,.15)}
+.notif-icon-wrap.green{background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.15);color:#16a34a}
+.notif-icon-wrap.blue{background:rgba(37,99,235,.08);border:1.5px solid rgba(37,99,235,.15);color:#2563eb}
+.notif-icon-wrap.amber{background:rgba(217,119,6,.08);border:1.5px solid rgba(217,119,6,.15);color:#d97706}
 .notif-title{font-size:13px;font-weight:600;color:#111;margin-bottom:2px}
 .notif-sub{font-size:12px;color:#bbb;line-height:1.4}
 .notif-time{font-size:10px;color:#bbb;margin-top:4px}
@@ -901,7 +901,7 @@ function checkinBannerHtml(){
   return '<div onclick="openCheckin()" style="margin:0 16px 12px;background:linear-gradient(135deg,#111 0%,#1a2e1a 100%);border-radius:20px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;">'+
     '<div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.15) 0%,transparent 70%);pointer-events:none;"></div>'+
     '<div style="display:flex;align-items:center;gap:12px;position:relative;">'+
-      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(22,163,74,.2);border:1.5px solid rgba(22,163,74,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;">📋</div>'+
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(22,163,74,.2);border:1.5px solid rgba(22,163,74,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#4ade80;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h4"/></svg></div>'+
       '<div style="flex:1;min-width:0;">'+
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'+
           '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-.1px;">Check-in de la semana</div>'+
@@ -929,7 +929,7 @@ function billingBannerHtml(){
   const txt=venc?'Cuota vencida':'Cuota pendiente';
   return '<div onclick="state.tab=\'home\';openPerfilPanel&&openPerfilPanel()" style="margin:0 16px 12px;background:'+bg+';border-radius:20px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;">'+
     '<div style="display:flex;align-items:center;gap:12px;position:relative;">'+
-      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;">💳</div>'+
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:'+accent+';"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>'+
       '<div style="flex:1;min-width:0;">'+
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'+
           '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-.1px;">'+txt+'</div>'+
@@ -1627,7 +1627,7 @@ function renderHome(){
   // Pastilla de estado (solo días de entreno): ✓ Completado o Pendiente (hoy)
   let statusPill='';
   if(isTrain){
-    if(completadoHoy) statusPill='<div style="font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#bbf7d0;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:3px 9px;border-radius:20px;">✓ Completado</div>';
+    if(completadoHoy) statusPill='<div style="font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#bbf7d0;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Completado</div>';
     else if(isToday) statusPill='<div style="font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fde68a;background:rgba(253,230,138,.18);border:1px solid rgba(253,230,138,.35);padding:3px 9px;border-radius:20px;">Pendiente</div>';
   }
   // Racha (semanas seguidas) DENTRO de la tarjeta, arriba a la derecha. Solo semana actual.
@@ -1644,7 +1644,7 @@ function renderHome(){
   // Botón principal: solo viendo HOY y si es día de entreno
   let primaryBtn='';
   if(isToday&&isTrain){
-    if(completadoHoy) primaryBtn='<button onclick="switchTab(\'train\')" style="width:100%;height:48px;border-radius:14px;background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.35);font-size:15px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">✓ Ver entreno de hoy</button>';
+    if(completadoHoy) primaryBtn='<button onclick="switchTab(\'train\')" style="width:100%;height:48px;border-radius:14px;background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.35);font-size:15px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Ver entreno de hoy</button>';
     else primaryBtn='<button onclick="iniciarEntrenoHoy()" style="width:100%;height:48px;border-radius:14px;background:#fff;color:#166534;border:none;font-size:15px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#166534"><polygon points="6,4 20,12 6,20"/></svg> Empezar entreno</button>';
   }
   const cambiarLbl=(isToday&&isTrain)?'<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:7px;">¿No te toca '+active+'? Cámbialo</div>':'';
@@ -1677,7 +1677,7 @@ function renderHome(){
     '<div onclick="'+onclick+'" style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">'+label+'</div>'+
-        (icon?'<span style="font-size:15px;line-height:1;">'+icon+'</span>':'')+
+        (icon?'<span style="display:inline-flex;color:'+color+';opacity:.85;line-height:1;">'+icon+'</span>':'')+
       '</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:'+(value?color:'#ddd')+';letter-spacing:-1px;line-height:1;flex:1;display:flex;align-items:center;">'+
         (value?(value+(unit?' <span style="font-size:13px;font-weight:400;color:#bbb;font-family:var(--font)">'+unit+'</span>':'')):'—')+
@@ -1690,7 +1690,7 @@ function renderHome(){
   const actCard='<div onclick="openActivityHistoryModal(event)" style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
       '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;">Actividad</div>'+
-      '<span style="font-size:15px;line-height:1;">⚡</span>'+
+      '<span style="display:inline-flex;color:#2563eb;opacity:.85;line-height:1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>'+
     '</div>'+
     (dd.entreno
       ? '<div style="font-size:17px;font-weight:700;color:#2563eb;line-height:1.25;flex:1;display:flex;align-items:center;">'+escHtml(dd.entreno)+'</div>'
@@ -1724,9 +1724,9 @@ function renderHome(){
       '<div style="padding:0 16px;margin-bottom:12px;display:flex;gap:5px;">'+weekStrip+'</div>'+
       // Metric cards 2x2
       '<div style="padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">'+
-        metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','👟')+
-        metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','😴')+
-        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','⚖️')+
+        metricCard('Pasos',dd.pasos?parseInt(dd.pasos).toLocaleString('es-ES'):null,'','#16a34a',pasosW,'openMetricModal(event,\'pasos\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>')+
+        metricCard('Sueño',dd.sueno,dd.sueno?'h':null,'#7c3aed',suenoW,'openMetricModal(event,\'sueno\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>')+
+        metricCard('Peso',dd.peso,dd.peso?'kg':null,'#111',null,'openMetricModal(event,\'peso\')','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6.5 8h11a1 1 0 0 1 .96 1.27l-2.4 8.4A2 2 0 0 1 14.14 19H9.86a2 2 0 0 1-1.92-1.33l-2.4-8.4A1 1 0 0 1 6.5 8Z"/></svg>')+
         actCard+
       '</div>'+
       // Export btn
@@ -1746,10 +1746,10 @@ function homeStreakHtml(){
   const s=trainingStreakWeeks();
   if(s<1) return '';
   return '<div style="margin:0 16px 12px;background:linear-gradient(135deg,#16a34a,#15803d);border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:11px;box-shadow:0 2px 8px rgba(22,163,74,.18);">'+
-    '<div style="font-size:22px;line-height:1;">🔥</div>'+
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>'+
     '<div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;">'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#fff;line-height:1;">'+s+' '+(s===1?'semana':'semanas')+'</div>'+
-      '<div style="font-size:11.5px;color:rgba(255,255,255,.85);font-weight:600;">entrenando seguidas 💪</div>'+
+      '<div style="font-size:11.5px;color:rgba(255,255,255,.85);font-weight:600;">entrenando seguidas</div>'+
     '</div>'+
   '</div>';
 }
@@ -3092,6 +3092,19 @@ function renderProgreso(){
   // 0b) Vista de programa/bloque
   html+=programBlockHtml();
 
+  // 0c) Acceso a cheats (visible, justo bajo el programa)
+  const nCheats=(gymData.cheats||[]).length;
+  html+='<button onclick="openCheats()" style="width:100%;border:1.5px solid #eaeae6;background:#fff;border-radius:18px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+    '<span style="display:flex;align-items:center;gap:11px">'+
+      '<span style="width:38px;height:38px;border-radius:11px;background:#fff7ed;border:1.5px solid rgba(234,88,12,.18);display:flex;align-items:center;justify-content:center;color:#ea580c;flex-shrink:0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg></span>'+
+      '<span style="text-align:left">'+
+        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
+        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
+      '</span>'+
+    '</span>'+
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'+
+  '</button>';
+
   // 1) Tarjeta resumen
   const deltaArrowSvg = delta==null?'' : (delta<0
     ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>'
@@ -3228,19 +3241,6 @@ function renderProgreso(){
   }
 
   html+='</div>'; // cierra el contenido con padding lateral
-
-  // Botón de banda a banda → abre los cheats a pantalla completa
-  const nCheats=(gymData.cheats||[]).length;
-  html+='<button onclick="openCheats()" style="width:100%;border:none;border-top:1.5px solid #eaeae6;background:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-top:8px">'+
-    '<span style="display:flex;align-items:center;gap:11px">'+
-      '<span style="width:38px;height:38px;border-radius:11px;background:#fff7ed;border:1.5px solid rgba(234,88,12,.18);display:flex;align-items:center;justify-content:center;color:#ea580c;flex-shrink:0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg></span>'+
-      '<span style="text-align:left">'+
-        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
-        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
-      '</span>'+
-    '</span>'+
-    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'+
-  '</button>';
 
   html+='</div>'; // cierra wrapper exterior
   return html;
@@ -5174,7 +5174,11 @@ function openMetricModal(event,metric){
   const TITLES={pasos:'Pasos de hoy',sueno:'Sueño',peso:'Peso de hoy'};
   const UNITS={pasos:'pasos',sueno:'h',peso:'kg'};
   const COLORS={pasos:'#16a34a',sueno:'#7c3aed',peso:'#111'};
-  const ICONS={pasos:'👟',sueno:'😴',peso:'⚖️'};
+  const ICONS={
+    pasos:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>',
+    sueno:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+    peso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6.5 8h11a1 1 0 0 1 .96 1.27l-2.4 8.4A2 2 0 0 1 14.14 19H9.86a2 2 0 0 1-1.92-1.33l-2.4-8.4A1 1 0 0 1 6.5 8Z"/></svg>'
+  };
   const color=COLORS[metric];
   const unit=UNITS[metric];
   const di=state.selectedDay;
@@ -5192,7 +5196,7 @@ function openMetricModal(event,metric){
       '<button onclick="window._mClose()" style="width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'+
       '</button>'+
-      '<div style="width:34px;height:34px;border-radius:10px;background:'+color+'1f;color:'+color+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+ICONS[metric]+'</div>'+
+      '<div style="width:34px;height:34px;border-radius:10px;background:'+color+'1f;color:'+color+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'+ICONS[metric]+'</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;font-weight:400;color:#111">'+TITLES[metric]+'</div>'+
     '</div>'+
     '<div id="metric-scroll" style="flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;padding:20px 16px 60px;scrollbar-width:none"></div>';
@@ -5218,7 +5222,7 @@ function openMetricModal(event,metric){
           '<div style="height:6px;background:#f0fdf4;border-radius:3px;overflow:hidden;margin-bottom:12px">'+
           '<div style="height:100%;width:'+pct+'%;background:#16a34a;border-radius:3px"></div></div>';
     } else if(metric==='sueno'){
-      const msg=pf<6?'Poco descanso 😴':pf<=8?'Buen descanso 🌙':'Muy buen descanso ⭐';
+      const msg=pf<6?'Poco descanso':pf<=8?'Buen descanso':'Muy buen descanso';
       ctx='<div style="font-size:12px;color:#bbb;margin-bottom:8px">'+msg+'</div>';
     } else if(metric==='peso'){
       const prev=parseFloat(dd[metric]||clientData?.weight_kg||0);
@@ -5348,7 +5352,7 @@ async function openActivityHistoryModal(event){
       '<button onclick="window._actClose()" style="width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'+
       '</button>'+
-      '<div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚡</div>'+
+      '<div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;font-weight:400;color:#111">Actividad extra</div>'+
     '</div>'+
     '<div style="flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;padding:20px 16px 60px;scrollbar-width:none" id="act-scroll">'+
@@ -5384,7 +5388,7 @@ async function openActivityHistoryModal(event){
   if(!listEl)return;
 
   if(!metrics||metrics.length===0){
-    listEl.innerHTML='<div style="text-align:center;padding:32px 0"><div style="font-size:28px;margin-bottom:8px">🏃</div><div style="font-size:13px;color:#bbb">Sin actividad registrada aún</div></div>';
+    listEl.innerHTML='<div style="text-align:center;padding:32px 0"><div style="width:48px;height:48px;border-radius:14px;background:#f0f0ec;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#ccc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div style="font-size:13px;color:#bbb">Sin actividad registrada aún</div></div>';
     return;
   }
 
@@ -6409,24 +6413,24 @@ async function loadNotifications(){
   const notifs=[];
   (revsRes.data||[]).forEach(r=>{
     const isRead=readSet.has('revision_notes:'+r.id);
-    notifs.push({id:r.id,table:'revision_notes',icon:'📋',iconClass:'green',title:'Nueva nota de revisión',sub:r.note.slice(0,80)+(r.note.length>80?'…':''),date:new Date(r.created_at),isRead,
+    notifs.push({id:r.id,table:'revision_notes',icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>',iconClass:'green',title:'Nueva nota de revisión',sub:r.note.slice(0,80)+(r.note.length>80?'…':''),date:new Date(r.created_at),isRead,
       onClickCode:`markRead('revision_notes','${r.id}');closeNotifPanel();`});
   });
   (plansRes.data||[]).forEach(p=>{
     const isRead=readSet.has('training_plans:'+p.id);
-    notifs.push({id:p.id,table:'training_plans',icon:'🏋️',iconClass:'blue',title:'Plan de entreno actualizado',sub:'Tu entrenador ha actualizado tu plan de entreno',date:new Date(p.created_at),isRead,
+    notifs.push({id:p.id,table:'training_plans',icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>',iconClass:'blue',title:'Plan de entreno actualizado',sub:'Tu entrenador ha actualizado tu plan de entreno',date:new Date(p.created_at),isRead,
       onClickCode:`markRead('training_plans','${p.id}');closeNotifPanel();switchTab('train');`});
   });
   (nplansRes.data||[]).forEach(p=>{
     const isRead=readSet.has('nutrition_plans:'+p.id);
-    notifs.push({id:p.id,table:'nutrition_plans',icon:'🍽️',iconClass:'amber',title:'Plan de dieta actualizado',sub:'Tu entrenador ha actualizado tu plan nutricional',date:new Date(p.created_at),isRead,
+    notifs.push({id:p.id,table:'nutrition_plans',icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',iconClass:'amber',title:'Plan de dieta actualizado',sub:'Tu entrenador ha actualizado tu plan nutricional',date:new Date(p.created_at),isRead,
       onClickCode:`markRead('nutrition_plans','${p.id}');closeNotifPanel();switchTab('diet');`});
   });
   notifs.sort((a,b)=>b.date-a.date);
   const unreadCount=notifs.filter(n=>!n.isRead).length;
   updateNotifBadgeCount(unreadCount);
   if(!notifs.length){
-    list.innerHTML='<div style="padding:32px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">🔔</div><div style="font-size:13px;color:#bbb">Sin notificaciones aún</div></div>';
+    list.innerHTML='<div style="padding:32px 20px;text-align:center"><div style="width:52px;height:52px;border-radius:15px;background:#f0f0ec;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#ccc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div style="font-size:13px;color:#bbb">Sin notificaciones aún</div></div>';
     return;
   }
   // Mark all as read after 1.5s
