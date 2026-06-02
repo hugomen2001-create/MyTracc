@@ -2152,9 +2152,25 @@ function renderDietSupabase(sel, dayName, isToday){
     return {kcal,ch,g,p};
   };
   // Totales del día con las comidas efectivas (base + tus cambios)
-  const baseTot=totalsFor(selectedOpt);           // objetivo del día (lo que asignó Pol)
+  const baseTot=totalsFor(selectedOpt);           // suma de la opción asignada al día
   const todayTot=effectiveDayTotals(dayKey);      // lo que comes realmente tras tus cambios
-  const dayInPlan=Math.abs(todayTot.kcal-baseTot.kcal)<=Math.max(80,baseTot.kcal*0.06) && Math.abs(todayTot.p-baseTot.p)<=15;
+  // Objetivo REAL del plan (lo que fija el entrenador en Tracc: kcal_goal/carbs_g/fat_g/protein_g).
+  // El denominador del "x / objetivo" debe ser esto, no la suma de la opción.
+  // Fallback a la suma de la opción si el plan no trae objetivo (planes antiguos).
+  const planGoal={
+    kcal:Number(activeNutritionPlan?.kcal_goal)||0,
+    ch:Number(activeNutritionPlan?.carbs_g)||0,
+    g:Number(activeNutritionPlan?.fat_g)||0,
+    p:Number(activeNutritionPlan?.protein_g)||0,
+  };
+  const goalTot={
+    kcal:planGoal.kcal||baseTot.kcal,
+    ch:planGoal.ch||baseTot.ch,
+    g:planGoal.g||baseTot.g,
+    p:planGoal.p||baseTot.p,
+  };
+  // "En plan" = lo que comes hoy cuadra con el OBJETIVO del entrenador (no con la opción).
+  const dayInPlan=Math.abs(todayTot.kcal-goalTot.kcal)<=Math.max(80,goalTot.kcal*0.06) && Math.abs(todayTot.p-goalTot.p)<=15;
 
   // ¿El plan se actualizó después de la última configuración del cliente?
   const planUpdatedAt=activeNutritionPlan?.updated_at||activeNutritionPlan?.created_at||null;
@@ -2197,12 +2213,12 @@ function renderDietSupabase(sel, dayName, isToday){
     '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:'+(needsConfig?'#bbb':'rgba(22,163,74,.6)')+';margin-bottom:8px;">'+(needsConfig?'Plan actual':'Objetivo diario')+'</div>'+
     '<div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:12px;">'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:52px;color:#111;letter-spacing:-2.5px;line-height:1;">'+(selectedOpt?Math.round(todayTot.kcal).toLocaleString('es-ES'):'—')+'</div>'+
-      '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">'+(selectedOpt?'/ '+Math.round(baseTot.kcal).toLocaleString('es-ES')+' kcal':'kcal')+'</div>'+
+      '<div style="font-size:14px;font-weight:600;color:#bbb;margin-bottom:10px;">'+(selectedOpt?'/ '+Math.round(goalTot.kcal).toLocaleString('es-ES')+' kcal':'kcal')+'</div>'+
       (selectedOpt?'<div style="margin-left:auto;margin-bottom:12px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;color:'+(dayInPlan?'#16a34a':'#d97706')+';">'+(dayInPlan?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> En plan':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Ajustado')+'</div>':'')+
     '</div>'+
     (selectedOpt?
       '<div style="display:flex;gap:7px;">'+
-        [['CH',todayTot.ch,baseTot.ch],['G',todayTot.g,baseTot.g],['P',todayTot.p,baseTot.p]].map(([m,v,t])=>{
+        [['CH',todayTot.ch,goalTot.ch],['G',todayTot.g,goalTot.g],['P',todayTot.p,goalTot.p]].map(([m,v,t])=>{
           const pct=t?Math.min(100,Math.round(v/t*100)):0;
           return '<div style="flex:1;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.18);border-radius:12px;padding:8px;text-align:center;">'+
             '<div style="font-size:15px;font-weight:700;color:#111;">'+Math.round(v)+'<span style="font-size:10px;color:#bbb;font-weight:600;">/'+Math.round(t)+'g</span></div>'+
