@@ -3560,16 +3560,21 @@ async function saveSetV2(exO,si,descanso,totalSeries){
       // Insert o update workout_set
       const exName=(window.exNames&&window.exNames[exO])||'Ejercicio '+exO;
       if(!sess.workout_sets)sess.workout_sets=[];
-      const existing=sess.workout_sets.find(s=>s.exercise_order===exO&&s.set_number===si+1);
+      // Buscar la fila existente por exercise_name + set_number (los campos que SÍ existen
+      // en workout_sets). Antes se buscaba por exercise_order, que no es columna de esta
+      // tabla → siempre era undefined → nunca encontraba y duplicaba la fila en cada guardado.
+      const existing=sess.workout_sets.find(s=>s.exercise_name===exName&&s.set_number===si+1);
+      const repsVal=parseInt(reps)||null;
+      const kgVal=parseFloat(kg)||null;
       if(existing&&existing.id){
-        // Ya existe en DB — actualizar
-        await sb.from('workout_sets').update({reps_done:parseInt(reps)||null,weight_kg:parseFloat(kg)||null}).eq('id',existing.id);
-        existing.reps_done=parseInt(reps)||null;existing.weight_kg=parseFloat(kg)||null;
+        // Ya existe en DB — actualizar (siempre se queda el último valor escrito)
+        await sb.from('workout_sets').update({reps_done:repsVal,weight_kg:kgVal}).eq('id',existing.id);
+        existing.reps_done=repsVal;existing.weight_kg=kgVal;
       } else {
         // No existe — insertar
         const {data:newSet,error:insertErr}=await sb.from('workout_sets').insert({
           session_id:sess.id,exercise_name:exName,
-          set_number:si+1,reps_done:parseInt(reps)||null,weight_kg:parseFloat(kg)||null
+          set_number:si+1,reps_done:repsVal,weight_kg:kgVal
         }).select().single();
         if(insertErr){console.error('workout_sets insert error:',insertErr);showToast('Error al guardar','red','Comprueba tu conexión e inténtalo');}
         if(newSet){
