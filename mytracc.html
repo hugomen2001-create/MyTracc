@@ -544,6 +544,11 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
         <div class="header-sub" id="header-date">—</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
+        <!-- Agenda / calendario -->
+        <div onclick="openAgendaPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+          <div id="agenda-badge" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#d97706;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box">0</div>
+        </div>
         <!-- Campanita notificaciones -->
         <div id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -589,6 +594,19 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
   </div>
   <div class="detail-panel-body">
     <div style="padding:16px 16px 80px" id="perfil-content"></div>
+  </div>
+</div>
+
+<!-- AGENDA / CALENDARIO PANEL -->
+<div class="detail-panel" id="panel-agenda">
+  <div class="detail-panel-header">
+    <div class="detail-panel-back" onclick="closeAgendaPanel()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div class="detail-panel-title">Mi agenda</div>
+  </div>
+  <div class="detail-panel-body">
+    <div style="padding:16px 16px 90px" id="agenda-content"></div>
   </div>
 </div>
 
@@ -726,7 +744,7 @@ function recomputeSessions(){
 
 const DAILY_MACROS={kcal:1960,carbs:245,fat:40,protein:155};
 let openMeals={};
-let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null,swapMeal:null,guidedIdx:0,cheatMonthOffset:0};
+let state={tab:'home',selectedDay:todayIdx(),trainSession:null,dietDay:todayIdx(),showCheatForm:false,showWeekReorder:false,pendingSets:{},openCheat:null,cheatEstimate:null,cheatSelectedDay:null,openNoteEx:null,swapMeal:null,guidedIdx:0,cheatMonthOffset:0,agendaMonthOffset:0};
 let timerInt=null,timerSec=0,timerTotal=0;
 // ── ESTADO SUPABASE ──
 let appUser=null, clientData=null, coachData=null;
@@ -744,6 +762,7 @@ let activeMeso=null;
 let splitAdjustments=[]; // histórico de desplazamientos del split (split_adjustments)
 let weekReorders={}; // week_key -> plan[] (reorganización semanal desde week_reorders en Supabase)
 let metricsCache={}; // date -> daily_metrics row
+let appointmentsCache=[]; // citas del cliente (tabla appointments)
 let sessionsCache={}; // date -> workout_session + sets
 let cheatsCache=[]; // array of cheat rows
 let revisionsCache=[]; // array de progress_photos (revisiones), cada una con ._photos
@@ -1736,6 +1755,10 @@ function renderHome(){
           '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:#111;letter-spacing:-.5px;line-height:1.1;">'+greeting()+', <em style="color:#16a34a;">'+nombre+'.</em></div>'+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:8px;">'+
+          '<div onclick="openAgendaPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">'+
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>'+
+            '<div id="agenda-badge" style="'+(agendaBadgeCount()>0?'display:flex':'display:none')+';position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#d97706;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box">'+(agendaBadgeCount()>9?'9+':agendaBadgeCount()||0)+'</div>'+
+          '</div>'+
           '<div onclick="toggleNotifPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">'+
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'+
             '<div id="notif-badge" style="'+(notifBadge>0?'display:flex':'display:none')+';position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:#ef4444;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center">'+(notifBadge>9?'9+':notifBadge||0)+'</div>'+
@@ -1993,7 +2016,7 @@ function renderTrain(){
     const noteField=(noteOpen||exNote)?
       '<textarea id="exnote-'+ex.o+'" placeholder="Contexto para Pol: ej. hombro molestaba, subir banco un punto…" '+
         'style="width:100%;margin-top:8px;border:1.5px solid #eaeae6;border-radius:10px;background:#fafaf8;padding:10px 12px;font-size:13px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:48px;outline:none;box-sizing:border-box" '+
-        'onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\'" '+
+        'onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\';saveExNote('+ex.o+',this.value)" '+
         'onchange="saveExNote('+ex.o+',this.value)">'+escHtml(exNote)+'</textarea>'
       :'';
 
@@ -2012,7 +2035,7 @@ function renderTrain(){
 
   const notes='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:14px;padding:14px 16px;margin-top:4px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
     '<div style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:6px">Notas</div>'+
-    '<textarea style="width:100%;border:1.5px solid #eaeae6;border-radius:10px;background:#f5f5f3;padding:11px 12px;font-size:14px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:64px;outline:none" onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\'" placeholder="Sensaciones, PR, lesiones…" onchange="saveDayField('+di+',\'notas\',this.value)">'+dd.notas+'</textarea>'+
+    '<textarea style="width:100%;border:1.5px solid #eaeae6;border-radius:10px;background:#f5f5f3;padding:11px 12px;font-size:14px;color:#111;font-family:\'DM Sans\',sans-serif;resize:none;min-height:64px;outline:none" onfocus="this.style.borderColor=\'#16a34a\'" onblur="this.style.borderColor=\'#eaeae6\';saveDayField('+di+',\'notas\',this.value)" placeholder="Sensaciones, PR, lesiones…" onchange="saveDayField('+di+',\'notas\',this.value)">'+dd.notas+'</textarea>'+
   '</div>';
 
   const exportBtn='<div style="text-align:center;padding:10px 0 4px">'+
@@ -6263,7 +6286,7 @@ async function initApp(user){
     await promoteScheduledPlans(client.id);
 
     // Cargar datos en paralelo
-    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes]=await Promise.all([
+    const [planRes,metricsRes,sessionsRes,cheatsRes,mesoRes,nutritionRes,adjustmentsRes,reordersRes,apptRes]=await Promise.all([
       sb.from('training_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('daily_metrics').select('*').eq('client_id',client.id).gte('date',getWeekStart90()).order('date'),
       sb.from('workout_sessions').select('*,workout_sets(*)').eq('client_id',client.id).gte('session_date',getWeekStart90()).order('session_date'),
@@ -6271,8 +6294,11 @@ async function initApp(user){
       sb.from('mesocycles').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('nutrition_plans').select('*').eq('client_id',client.id).eq('is_active',true).maybeSingle(),
       sb.from('split_adjustments').select('*').eq('client_id',client.id).order('effective_date'),
-      sb.from('week_reorders').select('*').eq('client_id',client.id)
+      sb.from('week_reorders').select('*').eq('client_id',client.id),
+      sb.from('appointments').select('*').eq('client_id',client.id).order('starts_at',{ascending:true})
     ]);
+
+    appointmentsCache=(apptRes&&apptRes.data)||[];
 
     activePlan=planRes.data||null;
     activeMeso=mesoRes.data||null;
@@ -6403,6 +6429,7 @@ async function initApp(user){
     const initial2=(client.name||'').charAt(0).toUpperCase()||'H';
     document.querySelectorAll('#app-avatar').forEach(el=>{el.textContent=initial2;});
     updateNotifBadge();
+    updateAgendaBadge();
 
   }catch(e){
     console.error('initApp error:',e);
@@ -6437,6 +6464,14 @@ function setupRealtime(){
       const {data}=await sb.from('training_plans').select('*').eq('client_id',clientData.id).eq('is_active',true).maybeSingle();
       activePlan=data||null;rebuildGymData();render();
       showToast('Plan actualizado por tu entrenador ✓');
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:'client_id=eq.'+clientData.id},async()=>{
+      const {data}=await sb.from('appointments').select('*').eq('client_id',clientData.id).order('starts_at',{ascending:true});
+      appointmentsCache=data||[];
+      updateAgendaBadge();
+      // Si el panel de agenda está abierto, refrescarlo en vivo
+      const ap=document.getElementById('panel-agenda');
+      if(ap&&ap.classList.contains('open'))renderAgenda();
     })
     .subscribe();
 }
@@ -6689,6 +6724,241 @@ function updateNotifBadgeCount(count){
     if(count>0){badge.style.display='flex';badge.textContent=count>9?'9+':count;}
     else{badge.style.display='none';}
   });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// AGENDA / CITAS (lado cliente). Lee la tabla appointments y deja al cliente
+// aceptar / rechazar / proponer otra hora. Estados (los crea Tracc):
+// pendiente · aceptada · contrapropuesta · rechazada · cancelada
+// ══════════════════════════════════════════════════════════════════════════
+const APPT_TYPES_C={
+  revision:{label:'Revisión',color:'#16a34a',bg:'#dcfce7',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>'},
+  llamada:{label:'Llamada',color:'#a16207',bg:'#fef9c3',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'},
+  sesion:{label:'Sesión',color:'#1d4ed8',bg:'#dbeafe',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>'},
+  otro:{label:'Cita',color:'#6b6b66',bg:'#ececec',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>'}
+};
+function apptType_C(t){return APPT_TYPES_C[t]||APPT_TYPES_C.otro;}
+// Citas "vivas" (no canceladas/rechazadas) para el calendario y la lista
+function liveAppts(){return (appointmentsCache||[]).filter(a=>a&&a.status!=='cancelada'&&a.status!=='rechazada');}
+// Nº de citas que requieren acción del cliente (propuestas por el coach, pendientes, sin ver)
+function agendaBadgeCount(){
+  return (appointmentsCache||[]).filter(a=>a&&a.status==='pendiente'&&a.proposed_by==='coach').length;
+}
+function updateAgendaBadge(){
+  const n=agendaBadgeCount();
+  document.querySelectorAll('#agenda-badge').forEach(b=>{
+    if(n>0){b.style.display='flex';b.textContent=n>9?'9+':n;}else{b.style.display='none';}
+  });
+}
+
+function openAgendaPanel(){
+  state.agendaMonthOffset=0;
+  document.getElementById('panel-agenda').classList.add('open');
+  renderAgenda();
+  // Marcar como vistas por el cliente las citas pendientes (badge "visto")
+  markAppointmentsSeen();
+}
+function closeAgendaPanel(){
+  document.getElementById('panel-agenda').classList.remove('open');
+}
+async function markAppointmentsSeen(){
+  const unseen=(appointmentsCache||[]).filter(a=>a&&a.seen_by_client===false);
+  if(!unseen.length)return;
+  unseen.forEach(a=>{a.seen_by_client=true;});
+  try{ await sb.from('appointments').update({seen_by_client:true}).in('id',unseen.map(a=>a.id)); }catch(e){}
+}
+
+function apptDate(a){return a&&a.starts_at?new Date(a.starts_at):null;}
+function apptFmtFecha(d){
+  if(!d)return '—';
+  const dias=['dom','lun','mar','mié','jue','vie','sáb'];
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return dias[d.getDay()]+' '+d.getDate()+' '+meses[d.getMonth()];
+}
+function apptFmtHora(d){return d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';}
+
+function renderAgenda(){
+  const el=document.getElementById('agenda-content');
+  if(!el)return;
+  const now=new Date();
+  const viewDate=new Date(now.getFullYear(),now.getMonth()+(state.agendaMonthOffset||0),1);
+  const year=viewDate.getFullYear(),month=viewDate.getMonth();
+  const isCurrentMonth=(state.agendaMonthOffset||0)===0;
+  const monthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const firstDow=new Date(year,month,1).getDay();
+  const startOffset=firstDow===0?6:firstDow-1;
+  const wkLabels=['L','M','X','J','V','S','D'];
+  const live=liveAppts();
+
+  // Mapa fecha(YYYY-MM-DD) -> color de estado dominante
+  const byDay={};
+  live.forEach(a=>{
+    const d=apptDate(a); if(!d)return;
+    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const col=(a.status==='aceptada')?'#16a34a':'#d97706'; // confirmada=verde, resto=ámbar
+    // ámbar tiene prioridad (algo por confirmar)
+    if(byDay[key]==='#d97706')return;
+    byDay[key]=col;
+  });
+
+  let html='';
+
+  // Aviso de citas por confirmar
+  const pend=agendaBadgeCount();
+  if(pend>0){
+    html+='<div style="background:linear-gradient(135deg,#111,#1a2e1a);border-radius:16px;padding:14px 15px;margin-bottom:14px;display:flex;align-items:center;gap:12px">'+
+      '<div style="width:38px;height:38px;border-radius:11px;background:rgba(22,163,74,.22);border:1.5px solid rgba(22,163,74,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#4ade80"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg></div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#fff">Tienes '+pend+' cita'+(pend!==1?'s':'')+' por confirmar</div>'+
+      '<div style="font-size:11.5px;color:rgba(255,255,255,.65)">Revisa la propuesta de tu entrenador abajo</div></div>'+
+    '</div>';
+  }
+
+  // Calendario mensual
+  let cal='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'+
+      '<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#bbb">'+monthNames[month]+' '+year+'</div>'+
+      '<div style="display:flex;gap:6px">'+
+        '<button onclick="changeAgendaMonth(-1)" style="width:26px;height:26px;border-radius:8px;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>'+
+        '<button onclick="changeAgendaMonth(1)" style="width:26px;height:26px;border-radius:8px;background:#f5f5f3;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>'+
+      '</div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">'+
+      wkLabels.map(d=>'<div style="text-align:center;font-size:9px;font-weight:700;color:#bbb">'+d+'</div>').join('')+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">';
+  for(let i=0;i<startOffset;i++)cal+='<div></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const key=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const col=byDay[key];
+    const isToday=isCurrentMonth&&d===now.getDate();
+    cal+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px">'+
+      '<div style="width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:'+(isToday||col?'700':'500')+';'+
+        (isToday?'background:#111;color:#fff;':col?('background:'+(col==='#16a34a'?'#f0fdf4':'#fffbeb')+';border:1.5px solid '+(col==='#16a34a'?'rgba(22,163,74,.3)':'#fde68a')+';color:'+(col==='#16a34a'?'#16a34a':'#a16207')+';'):'color:#888;')+
+      '">'+d+'</div>'+
+      (col?'<div style="width:5px;height:5px;border-radius:50%;background:'+col+'"></div>':'<div style="height:5px"></div>')+
+    '</div>';
+  }
+  cal+='</div>'+
+    '<div style="display:flex;gap:13px;margin-top:14px;padding-top:12px;border-top:1px solid #f0f0ec;flex-wrap:wrap">'+
+      '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#888"><span style="width:7px;height:7px;border-radius:50%;background:#d97706"></span>Por confirmar</span>'+
+      '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#888"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a"></span>Confirmada</span>'+
+    '</div>'+
+  '</div>';
+  html+=cal;
+
+  // Lista de próximas citas (futuras o de hoy, no pasadas), ordenadas
+  const today0=new Date();today0.setHours(0,0,0,0);
+  const upcoming=live.filter(a=>{const d=apptDate(a);return d&&d>=today0;}).sort((a,b)=>apptDate(a)-apptDate(b));
+  html+='<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#bbb;margin:0 4px 8px">Próximas</div>';
+  if(!upcoming.length){
+    html+='<div style="background:#fff;border:1.5px solid #eaeae6;border-radius:16px;padding:26px 18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+      '<div style="font-size:13px;color:#bbb">No tienes citas próximas.</div>'+
+    '</div>';
+  } else {
+    upcoming.forEach(a=>{ html+=apptCardHtml(a); });
+  }
+
+  el.innerHTML=html;
+  updateAgendaBadge();
+}
+
+function apptCardHtml(a){
+  const T=apptType_C(a.type),d=apptDate(a);
+  const pendiente=(a.status==='pendiente'&&a.proposed_by==='coach');
+  const esperando=(a.status==='contrapropuesta')||(a.status==='pendiente'&&a.proposed_by==='client');
+  const estados={
+    pendiente:['Por confirmar','#a16207','#fef9c3'],
+    aceptada:['Confirmada','#16a34a','#dcfce7'],
+    contrapropuesta:['Esperando a tu entrenador','#a16207','#fef9c3']
+  };
+  const stKey=(a.status==='pendiente'&&a.proposed_by==='client')?'contrapropuesta':a.status;
+  const st=estados[stKey]||['—','#6b6b66','#ececec'];
+  const borderCol=pendiente?'#fde68a':'#eaeae6';
+  let html='<div style="background:#fff;border:1.5px solid '+borderCol+';border-radius:16px;padding:14px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+    '<div style="display:flex;align-items:center;gap:11px;'+(pendiente||esperando?'margin-bottom:11px':'')+'">'+
+      '<div style="width:40px;height:40px;border-radius:11px;background:'+T.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;color:'+T.color+'">'+T.svg+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:14px;font-weight:700;color:#111">'+T.label+'</div>'+
+        '<div style="font-size:12px;color:#888">'+apptFmtFecha(d)+' · '+apptFmtHora(d)+(a.location?' · '+escHtml(a.location):'')+'</div>'+
+      '</div>'+
+      '<span style="font-size:10px;font-weight:700;color:'+st[1]+';background:'+st[2]+';padding:3px 9px;border-radius:6px;white-space:nowrap">'+st[0]+'</span>'+
+    '</div>'+
+    (a.notes?'<div style="font-size:12px;color:#666;background:#f5f5f3;border-radius:10px;padding:8px 11px;margin-bottom:'+(pendiente?'11px':'0')+';line-height:1.45">'+escHtml(a.notes)+'</div>':'');
+  if(pendiente){
+    html+='<div style="display:flex;gap:7px">'+
+      '<button onclick="aceptarCita(\''+a.id+'\')" style="flex:1;height:42px;border-radius:12px;background:#16a34a;color:#fff;border:none;font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Aceptar</button>'+
+      '<button onclick="abrirContraproponer(\''+a.id+'\')" style="flex:1;height:42px;border-radius:12px;background:#fff;color:#666;border:1.5px solid #eaeae6;font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Otra hora</button>'+
+      '<button onclick="rechazarCita(\''+a.id+'\')" style="width:42px;height:42px;border-radius:12px;background:#fff;color:#dc2626;border:1.5px solid #fecaca;font-family:\'DM Sans\',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
+    '</div>';
+  }
+  html+='</div>';
+  return html;
+}
+
+function changeAgendaMonth(delta){
+  state.agendaMonthOffset=(state.agendaMonthOffset||0)+delta;
+  const el=document.getElementById('agenda-content');
+  const sc=document.querySelector('#panel-agenda .detail-panel-body');
+  const top=sc?sc.scrollTop:0;
+  renderAgenda();
+  if(sc)sc.scrollTop=top;
+}
+
+async function aceptarCita(id){
+  const a=appointmentsCache.find(x=>String(x.id)===String(id)); if(!a)return;
+  a.status='aceptada';a.seen_by_coach=false;
+  renderAgenda();
+  try{ await sb.from('appointments').update({status:'aceptada',seen_by_coach:false}).eq('id',id); showToast('Cita confirmada','green'); }
+  catch(e){ showToast('No se pudo confirmar','red','Inténtalo de nuevo'); }
+}
+async function rechazarCita(id){
+  const a=appointmentsCache.find(x=>String(x.id)===String(id)); if(!a)return;
+  a.status='rechazada';a.seen_by_coach=false;
+  renderAgenda();updateAgendaBadge();
+  try{ await sb.from('appointments').update({status:'rechazada',seen_by_coach:false}).eq('id',id); showToast('Cita rechazada','green'); }
+  catch(e){ showToast('No se pudo rechazar','red','Inténtalo de nuevo'); }
+}
+
+// Modal de contrapropuesta de hora
+function abrirContraproponer(id){
+  const a=appointmentsCache.find(x=>String(x.id)===String(id)); if(!a)return;
+  const d=apptDate(a);
+  const T=apptType_C(a.type);
+  const fechaVal=d?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):'';
+  const horaVal=d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';
+  let ov=document.getElementById('cp-overlay');
+  if(!ov){ov=document.createElement('div');ov.id='cp-overlay';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:850;display:flex;align-items:flex-end;justify-content:center';ov.onclick=(e)=>{if(e.target===ov)cerrarContraproponer();};document.body.appendChild(ov);}
+  ov.innerHTML='<div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:18px 18px calc(28px + env(safe-area-inset-bottom))" onclick="event.stopPropagation()">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+      '<div style="font-family:\'DM Serif Display\',serif;font-size:19px;color:#111">Proponer otra hora</div>'+
+      '<button onclick="cerrarContraproponer()" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #eaeae6;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
+    '</div>'+
+    '<div style="background:#f5f5f3;border-radius:12px;padding:11px 13px;margin-bottom:16px">'+
+      '<div style="font-size:11px;color:#bbb;margin-bottom:2px">Tu entrenador propuso</div>'+
+      '<div style="font-size:13.5px;font-weight:600;color:#111">'+T.label+' · '+apptFmtFecha(d)+' · '+apptFmtHora(d)+'</div>'+
+    '</div>'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;margin-bottom:8px">Tu propuesta</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:18px">'+
+      '<input type="date" id="cp-fecha" value="'+fechaVal+'" style="flex:1.4;height:48px;border-radius:12px;border:1.5px solid #eaeae6;padding:0 13px;font-size:14px;color:#111;font-weight:600;font-family:\'DM Sans\',sans-serif;outline:none;background:#fff">'+
+      '<input type="time" id="cp-hora" value="'+horaVal+'" style="flex:1;height:48px;border-radius:12px;border:1.5px solid #eaeae6;padding:0 13px;font-size:14px;color:#111;font-weight:600;font-family:\'DM Sans\',sans-serif;outline:none;background:#fff">'+
+    '</div>'+
+    '<button onclick="enviarContrapropuesta(\''+id+'\')" style="width:100%;height:50px;border-radius:14px;background:#111;color:#fff;border:none;font-size:14px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Enviar propuesta</button>'+
+  '</div>';
+  ov.style.display='flex';
+}
+function cerrarContraproponer(){const ov=document.getElementById('cp-overlay');if(ov)ov.style.display='none';}
+async function enviarContrapropuesta(id){
+  const a=appointmentsCache.find(x=>String(x.id)===String(id)); if(!a)return;
+  const fecha=document.getElementById('cp-fecha').value;
+  const hora=document.getElementById('cp-hora').value;
+  if(!fecha||!hora){showToast('Elige fecha y hora','red');return;}
+  const nuevo=new Date(fecha+'T'+hora);
+  if(isNaN(nuevo.getTime())){showToast('Fecha u hora no válida','red');return;}
+  a.status='contrapropuesta';a.client_proposed_at=nuevo.toISOString();a.seen_by_coach=false;
+  cerrarContraproponer();renderAgenda();updateAgendaBadge();
+  try{ await sb.from('appointments').update({status:'contrapropuesta',client_proposed_at:nuevo.toISOString(),seen_by_coach:false}).eq('id',id); showToast('Propuesta enviada','green'); }
+  catch(e){ showToast('No se pudo enviar','red','Inténtalo de nuevo'); }
 }
 
 // ── PERFIL PANEL ──
