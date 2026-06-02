@@ -3773,33 +3773,40 @@ async function openExHistory(exName,session,exOrder){
       '<div style="font-size:12px;color:#ccc;margin-top:4px">Guarda tu primera serie para verla aquí</div>'+
     '</div>';
 
-  const overlayEl=document.createElement('div');
-  overlayEl.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:700;display:flex;align-items:flex-end;justify-content:center';
-  overlayEl.onclick=e=>{if(e.target===overlayEl)closeSheet();};
+  // Panel a pantalla completa (mismo patrón que openMetricModal, que scrollea bien).
+  // Antes era un bottom-sheet con initSwipe: el listener de arrastre capturaba el gesto
+  // vertical como "cerrar" y bloqueaba el scroll del contenido.
+  const screen=document.createElement('div');
+  screen.id='exhist-screen';
+  screen.style.cssText='position:fixed;inset:0;z-index:700;background:#f5f5f3;display:flex;flex-direction:column;overflow:hidden';
 
-  const sheetEl=document.createElement('div');
-  sheetEl.style.cssText='background:#f5f5f3;border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;will-change:transform;scrollbar-width:none';
-  sheetEl.onclick=e=>e.stopPropagation();
-
-  function closeSheet(){
-    sheetEl.style.transition='transform 0.28s cubic-bezier(0.25,1,0.5,1)';
-    sheetEl.style.transform='translateY(110%)';
-    setTimeout(()=>overlayEl.remove(),280);
-  }
-
-  sheetEl.innerHTML=
-    '<div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:12px auto 0"></div>'+
-    '<div style="padding:18px 20px 16px;border-bottom:1.5px solid #eaeae6">'+
-      '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;letter-spacing:-0.3px;line-height:1.1;margin-bottom:4px">'+exName+'</div>'+
-      '<div style="display:inline-block;background:#f0f0ec;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px">'+session+'</div>'+
+  screen.innerHTML=
+    // Header fijo con botón atrás
+    '<div style="flex-shrink:0;background:#fff;border-bottom:1.5px solid #eaeae6;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:11px">'+
+      '<button onclick="window._exhClose&&window._exhClose()" style="width:36px;height:36px;border-radius:10px;border:1.5px solid #eaeae6;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'+
+      '</button>'+
+      '<div style="min-width:0;flex:1">'+
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:#111;letter-spacing:-0.3px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+exName+'</div>'+
+        '<div style="display:inline-block;background:#f0f0ec;border-radius:6px;padding:2px 9px;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px">'+session+'</div>'+
+      '</div>'+
     '</div>'+
-    '<div style="padding:16px 16px 48px">'+
+    // Cuerpo scrollable
+    '<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 60px;scrollbar-width:none">'+
       bestBlock+liveHtml+staticHtml+
     '</div>';
 
-  overlayEl.appendChild(sheetEl);
-  document.body.appendChild(overlayEl);
-  initSwipe(sheetEl,closeSheet);
+  document.body.appendChild(screen);
+  // Animar entrada desde la derecha
+  screen.style.transform='translateX(100%)';
+  screen.style.transition='transform 0.28s cubic-bezier(0.32,0.72,0,1)';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{screen.style.transform='translateX(0)';}));
+
+  window._exhClose=function(){
+    screen.style.transition='transform 0.22s ease-in';
+    screen.style.transform='translateX(100%)';
+    setTimeout(()=>{screen.remove();},230);
+  };
 }
 
 
