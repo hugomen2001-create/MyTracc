@@ -636,11 +636,12 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 <div class="timer-overlay" id="timer-overlay" onclick="closeTimerOutside(event)">
   <div class="timer-box">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="width:40px"></div>
-      <div style="width:40px;height:4px;background:#e0e0dc;border-radius:2px"></div>
-      <button onclick="minimizeTimer()" title="Minimizar" style="width:40px;height:32px;border:none;background:transparent;color:#bbb;cursor:pointer;display:flex;align-items:center;justify-content:flex-end">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button onclick="minimizeTimer()" style="height:32px;padding:0 13px;border-radius:16px;border:1.5px solid #eaeae6;background:#f5f5f3;color:#666;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Minimizar
       </button>
+      <div style="width:40px;height:4px;background:#e0e0dc;border-radius:2px"></div>
+      <div style="width:90px"></div>
     </div>
 
     <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Descansando</div>
@@ -1625,18 +1626,19 @@ function renderHome(){
     const _today0=new Date();_today0.setHours(0,0,0,0);
     const _dayDate=new Date(getDayDate(i)+'T00:00:00');
     const isPast=_dayDate<_today0;
-    // Día "fallado": tocaba entrenar, ya pasó, no se completó y no quedó ningún dato → rojo
-    const isMissed=isTrain_i&&isPast&&!isDone&&!hasMetrics;
-    // Colores según diseño
+    // Día "fallado": tocaba entrenar, ya pasó y NO se completó el entreno → rojo
+    // (aunque haya métricas: lo que cuenta para el rojo es no haber hecho el entreno).
+    const isMissed=isTrain_i&&isPast&&!isDone;
+    // Colores según diseño. Prioridad: seleccionado > completado > fallado(rojo) > con-datos(verde) > vacío.
     let bg,border,dotColor,labelColor,letterColor;
-    if(isSel&&isT){
+    if(isSel){
       bg='#111';border='#111';dotColor='#fff';labelColor='rgba(255,255,255,.7)';letterColor='#fff';
-    } else if(isSel){
-      bg='#111';border='#111';dotColor='#fff';labelColor='rgba(255,255,255,.7)';letterColor='#fff';
-    } else if(isDone||hasMetrics){
+    } else if(isDone){
       bg='#f7fdf8';border='rgba(22,163,74,.18)';dotColor='#16a34a';labelColor='rgba(22,163,74,.55)';letterColor='rgba(22,163,74,.7)';
     } else if(isMissed){
       bg='#fef2f2';border='rgba(239,68,68,.22)';dotColor='#ef4444';labelColor='rgba(239,68,68,.6)';letterColor='rgba(239,68,68,.75)';
+    } else if(hasMetrics){
+      bg='#f7fdf8';border='rgba(22,163,74,.18)';dotColor='#16a34a';labelColor='rgba(22,163,74,.55)';letterColor='rgba(22,163,74,.7)';
     } else {
       bg='#fff';border='#eaeae6';dotColor='#e0e0dc';labelColor='#ccc';letterColor='#ccc';
     }
@@ -1855,15 +1857,16 @@ function renderTrain(){
         const w=wd[i]||{},done=w.sessionSaved,isT=isCurrentWeek&&i===todayI,isSel=i===di,plan=getWeekPlan(wk)[i];
         const isRest=!SESSIONS.includes(plan);
         const restPassed=isRest && ((state.weekOffset||0)<0 || i<todayI); // descanso ya pasado = "hecho"
-        // ¿Día de entreno ya pasado y sin completar? → rojo (fallado)
+        // ¿Día de entreno ya pasado y sin completar? → rojo (aunque haya métricas)
         const _t0=new Date();_t0.setHours(0,0,0,0);
         const _dd=new Date(getDayDate(i)+'T00:00:00');
         const hasMetrics=w.pasos||w.sueno||w.peso;
-        const isMissed=!isRest && _dd<_t0 && !done && !hasMetrics;
+        const isMissed=!isRest && _dd<_t0 && !done;
         let bg,border,dotColor,labelColor,letterColor;
         if(isSel){bg='#111';border='1.5px solid #111';dotColor='rgba(255,255,255,.8)';labelColor='rgba(255,255,255,.7)';letterColor='#fff';}
         else if(done||restPassed){bg='#f7fdf8';border='1.5px solid rgba(22,163,74,.18)';dotColor='#16a34a';labelColor='rgba(22,163,74,.55)';letterColor='rgba(22,163,74,.7)';}
         else if(isMissed){bg='#fef2f2';border='1.5px solid rgba(239,68,68,.22)';dotColor='#ef4444';labelColor='rgba(239,68,68,.6)';letterColor='rgba(239,68,68,.75)';}
+        else if(hasMetrics){bg='#f7fdf8';border='1.5px solid rgba(22,163,74,.18)';dotColor='#16a34a';labelColor='rgba(22,163,74,.55)';letterColor='rgba(22,163,74,.7)';}
         else{bg='#fff';border='1.5px solid #eaeae6';dotColor='#e0e0dc';labelColor='#ccc';letterColor='#ccc';}
         const typeLabel=SESSIONS.includes(plan)?plan:'DSC';
         return '<div onclick="selectTrainDay('+i+')" style="flex:1;background:'+bg+';border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:4px;border:'+border+';cursor:pointer;transition:all .15s;">'+
@@ -3484,15 +3487,21 @@ function renderCheats(){
     calGrid+
   '</div>';
 
-  // ── Lista de cheats ──
+  // ── Lista de cheats (solo del mes que se está viendo) ──
   let listHtml='';
-  if(cheats.length>0){
-    const sorted=cheats.slice().sort((a,b)=>{
+  const monthCheats=cheats.filter(ch=>{
+    if(!ch.fecha)return false;
+    const p=ch.fecha.split('/'); // d/m/yyyy
+    return (parseInt(p[1])-1)===month && parseInt(p[2])===year;
+  });
+  const listTitle='<div style="margin:0 16px 8px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;">Registro de '+monthNames[month].toLowerCase()+'</div>';
+  if(monthCheats.length>0){
+    const sorted=monthCheats.slice().sort((a,b)=>{
       if(!a.fecha||!b.fecha)return 0;
       const pa=a.fecha.split('/'),pb=b.fecha.split('/');
       return new Date(pb[2],pb[1]-1,pb[0])-new Date(pa[2],pa[1]-1,pa[0]);
     });
-    listHtml='<div style="margin:0 16px 14px;background:#fff;border-radius:20px;border:1.5px solid #eaeae6;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
+    listHtml=listTitle+'<div style="margin:0 16px 14px;background:#fff;border-radius:20px;border:1.5px solid #eaeae6;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
       sorted.map((ch,idx)=>{
         const emoji=getCheatEmoji(ch.desc||ch.nombre||'');
         const isLast=idx===sorted.length-1;
@@ -3510,6 +3519,11 @@ function renderCheats(){
           '</div>'+
         '</div>';
       }).join('')+
+    '</div>';
+  } else if(cheats.length>0){
+    // Hay cheats en otros meses pero no en este → mensaje de mes vacío
+    listHtml=listTitle+'<div style="margin:0 16px 14px;background:#fff;border:1.5px solid #eaeae6;border-radius:20px;padding:22px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04);">'+
+      '<div style="font-size:13px;color:#bbb;">Sin cheats en '+monthNames[month].toLowerCase()+' '+year+'.</div>'+
     '</div>';
   }
 
