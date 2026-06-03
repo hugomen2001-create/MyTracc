@@ -123,6 +123,8 @@ input[type=number]{-moz-appearance:textfield}
 /* METRIC MODAL — native app style */
 .metric-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:600;display:none;align-items:flex-end;justify-content:center}
 .metric-overlay.open{display:flex;animation:fadeIn 0.2s ease}
+.metric-overlay.open .metric-sheet{animation:sheetUp .34s cubic-bezier(0.32,0.72,0,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .metric-sheet{background:#f5f5f3;border-radius:28px 28px 0 0;width:100%;max-width:430px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
