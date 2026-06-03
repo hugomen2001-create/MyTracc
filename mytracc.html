@@ -575,9 +575,9 @@ button, [onclick]:not(input):not(textarea):not(select){
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <!-- Agenda / calendario -->
-        <div id="tour-anchor-agenda" onclick="openAgendaPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+        <div id="tour-anchor-agenda-hidden" onclick="openAgendaPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
-          <div id="agenda-badge" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#d97706;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box">0</div>
+          <div id="agenda-badge-hidden" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#d97706;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box">0</div>
         </div>
         <!-- Campanita notificaciones -->
         <div id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">
@@ -585,7 +585,7 @@ button, [onclick]:not(input):not(textarea):not(select){
           <div id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:#ef4444;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center">0</div>
         </div>
         <!-- Avatar perfil -->
-        <div id="app-avatar" onclick="openPerfilPanel()" style="width:38px;height:38px;border-radius:50%;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.25);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#16a34a;flex-shrink:0;cursor:pointer;font-family:'DM Sans',sans-serif">H</div>
+        <div id="app-avatar-hidden" onclick="openPerfilPanel()" style="width:38px;height:38px;border-radius:50%;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.25);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#16a34a;flex-shrink:0;cursor:pointer;font-family:'DM Sans',sans-serif">H</div>
       </div>
     </div>
   </div>
@@ -1515,14 +1515,14 @@ function getDayData(wk,di){
 // TOUR DE BIENVENIDA (cliente). Burbujas paso a paso. Auto la 1ª vez + botón.
 // ══════════════════════════════════════════════════════════════════════════
 const CLIENT_TOUR=[
-  { sel:null, t:'¡Bienvenido a MyTracc!', b:'Esta es tu app para entrenar, seguir tu dieta y estar en contacto con tu entrenador. Te enseño lo básico en 30 segundos.' },
-  { sel:'#tab-home', t:'Inicio', b:'Tu pantalla de cada día: el entrenamiento de hoy, tu racha de días cumpliendo y un resumen rápido. Empieza siempre por aquí.' },
-  { sel:'#tab-train', t:'Entreno', b:'Aquí haces tu entrenamiento. Apunta cada serie (repeticiones y peso) y usa el temporizador de descanso entre series. Puedes minimizarlo y seguir usando la app.' },
-  { sel:'#tab-diet', t:'Dieta', b:'Tu plan de comidas con las opciones que te puso tu entrenador, y tu objetivo diario de calorías y macros. Aquí registras también los cheats.' },
-  { sel:'#tab-progress', t:'Progreso', b:'Tu evolución: peso, cargas por ejercicio y tu historial. Cada semana podrás enviar tu check-in (cómo te encuentras).' },
-  { sel:'#tour-anchor-agenda', t:'Tu agenda', b:'Aquí ves tus citas con el entrenador y puedes proponerle tú una (llamada, sesión…). También puedes apuntar notas en cualquier día y decidir si se las compartes.' },
-  { sel:'#app-avatar', t:'Tu perfil', b:'Tus datos, tu cuota y tu cuestionario. Y desde aquí completas tu perfil si te falta algo.' },
-  { sel:null, t:'¡Listo!', b:'Eso es todo. Cuanto más registres, mejor podrá ayudarte tu entrenador. Puedes volver a ver esta guía desde tu perfil cuando quieras.' },
+  { sel:null, tab:'home', t:'¡Bienvenido a MyTracc!', b:'Esta es tu app para entrenar, seguir tu dieta y estar en contacto con tu entrenador. Te enseño lo básico en 30 segundos.' },
+  { sel:'#tab-home', tab:'home', t:'Inicio', b:'Tu pantalla de cada día: el entrenamiento de hoy, los días de la semana y tu resumen rápido (pasos, sueño, peso, actividad). Empieza siempre por aquí.' },
+  { sel:'#tab-train', tab:'train', t:'Entreno', b:'Aquí haces tu entrenamiento del día. Apunta cada serie (repeticiones y peso) y usa el temporizador de descanso entre series. Puedes minimizarlo y seguir usando la app.' },
+  { sel:'#tab-diet', tab:'diet', t:'Dieta', b:'Tu plan de comidas con las opciones que te puso tu entrenador y tu objetivo diario de calorías y macros. Aquí también registras tus cheats.' },
+  { sel:'#tab-progress', tab:'progress', t:'Progreso', b:'Tu evolución: peso actual y su gráfica, tus fotos de “antes vs ahora”, las revisiones y las notas de tu entrenador.' },
+  { sel:'#tour-anchor-agenda', tab:'home', t:'Tu agenda', b:'Aquí ves tus citas con el entrenador y puedes proponerle tú una (llamada, sesión…). También puedes apuntar notas en cualquier día y decidir si se las compartes.' },
+  { sel:'#app-avatar', tab:'home', t:'Tu perfil', b:'Tus datos (objetivo, peso, revisión), tu cuota y tu cuestionario. Desde aquí completas tu perfil si te falta algo, y puedes volver a ver esta guía.' },
+  { sel:null, tab:'home', t:'¡Listo!', b:'Eso es todo. Cuanto más registres, mejor podrá ayudarte tu entrenador. Puedes volver a ver esta guía desde tu perfil cuando quieras.' },
 ];
 let _ctIdx=0;
 function _clientTourKey(){ try{ return 'mytracc_tour_seen_'+((clientData&&clientData.id)||'x'); }catch(e){ return 'mytracc_tour_seen_x'; } }
@@ -1539,10 +1539,10 @@ function clientTourPrev(){ if(_ctIdx>0){ _ctIdx--; _ctShow(); } }
 function clientTourNext(){ if(_ctIdx>=CLIENT_TOUR.length-1){ _ctEnd(); return; } _ctIdx++; _ctShow(); }
 function _ctShow(){
   const step=CLIENT_TOUR[_ctIdx];
-  // Pasos cuyo target vive en el header (solo visible en home): forzar home y esperar al render
-  if((step.sel==='#app-avatar' || step.sel==='#tour-anchor-agenda') && state.tab!=='home'){
-    switchTab('home');
-    setTimeout(_ctRender, 220);
+  // Cambiar a la pantalla del paso para que se vea de fondo; esperar al render antes de resaltar
+  if(step.tab && state.tab!==step.tab){
+    switchTab(step.tab);
+    setTimeout(_ctRender, 240);
     return;
   }
   _ctRender();
@@ -1876,7 +1876,7 @@ function renderHome(){
           '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:#111;letter-spacing:-.5px;line-height:1.1;">'+greeting()+', <em style="color:#16a34a;">'+nombre+'.</em></div>'+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:8px;">'+
-          '<div onclick="openAgendaPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">'+
+          '<div id="tour-anchor-agenda" onclick="openAgendaPanel()" style="position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #eaeae6;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05)">'+
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>'+
             '<div id="agenda-badge" style="'+(agendaBadgeCount()>0?'display:flex':'display:none')+';position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#d97706;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box">'+(agendaBadgeCount()>9?'9+':agendaBadgeCount()||0)+'</div>'+
           '</div>'+
@@ -1884,7 +1884,7 @@ function renderHome(){
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'+
             '<div id="notif-badge" style="'+(notifBadge>0?'display:flex':'display:none')+';position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:#ef4444;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center">'+(notifBadge>9?'9+':notifBadge||0)+'</div>'+
           '</div>'+
-          '<div onclick="openPerfilPanel()" style="width:38px;height:38px;border-radius:50%;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.25);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#16a34a;flex-shrink:0;cursor:pointer;font-family:\'DM Sans\',sans-serif;">'+inicial+'</div>'+
+          '<div id="app-avatar" onclick="openPerfilPanel()" style="width:38px;height:38px;border-radius:50%;background:#f0fdf4;border:1.5px solid rgba(22,163,74,.25);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#16a34a;flex-shrink:0;cursor:pointer;font-family:\'DM Sans\',sans-serif;">'+inicial+'</div>'+
         '</div>'+
       '</div>'+
       // Plan card
@@ -2214,6 +2214,21 @@ function renderTrain(){
   '</div>';
 }
 
+// Botón de acceso a "Registra tus cheats" (ahora vive en la pantalla de Dieta)
+function cheatsButtonHtml(){
+  const nCheats=(gymData.cheats||[]).length;
+  return '<button id="tour-anchor-cheats" onclick="openCheats()" style="width:100%;border:1.5px solid #eaeae6;background:#fff;border-radius:18px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+    '<span style="display:flex;align-items:center;gap:11px">'+
+      '<span style="width:38px;height:38px;border-radius:11px;background:#fff7ed;border:1.5px solid rgba(234,88,12,.18);display:flex;align-items:center;justify-content:center;color:#ea580c;flex-shrink:0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg></span>'+
+      '<span style="text-align:left">'+
+        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
+        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
+      '</span>'+
+    '</span>'+
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'+
+  '</button>';
+}
+
 function renderDiet(){
   const sel=state.dietDay, dayName=DAYS[sel];
   const isToday=sel===todayIdx();
@@ -2233,6 +2248,7 @@ function renderDiet(){
     '<div style="flex:1;overflow-y:auto;padding:68px 16px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
       '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bbb;margin-bottom:4px">Plan nutricional</div>'+
       '<div style="font-family:\'DM Serif Display\',serif;font-size:28px;color:#111;letter-spacing:-.5px;line-height:1.1;margin-bottom:20px">Tu <em style="color:#16a34a;">dieta.</em></div>'+
+      cheatsButtonHtml()+
       '<div style="background:#f0fdf4;border:1.5px solid rgba(22,163,74,.2);border-radius:20px;padding:28px 24px;text-align:center;margin-top:8px">'+
         '<div style="width:56px;height:56px;border-radius:16px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#16a34a"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10"/><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7"/><path d="m13 12 4-4"/></svg></div>'+
         '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:#111;margin-bottom:8px">Aún sin dieta.</div>'+
@@ -2540,7 +2556,7 @@ function renderDietSupabase(sel, dayName, isToday){
 
   return '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#f5f5f3">'+
     '<div style="flex:1;overflow-y:auto;padding-bottom:80px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+
-      header+scheduledBannerHtml('diet')+reconfigureBannerHtml()+banner+macrosCard+daySelector+mealsHtml+editBtn+
+      header+scheduledBannerHtml('diet')+reconfigureBannerHtml()+banner+macrosCard+'<div style="padding:0 16px">'+cheatsButtonHtml()+'</div>'+daySelector+mealsHtml+editBtn+
     '</div>'+
   '</div>';
 }
@@ -3356,18 +3372,7 @@ function renderProgreso(){
   // 0b) Vista de programa/bloque
   html+=programBlockHtml();
 
-  // 0c) Acceso a cheats (visible, justo bajo el programa)
-  const nCheats=(gymData.cheats||[]).length;
-  html+='<button onclick="openCheats()" style="width:100%;border:1.5px solid #eaeae6;background:#fff;border-radius:18px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
-    '<span style="display:flex;align-items:center;gap:11px">'+
-      '<span style="width:38px;height:38px;border-radius:11px;background:#fff7ed;border:1.5px solid rgba(234,88,12,.18);display:flex;align-items:center;justify-content:center;color:#ea580c;flex-shrink:0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg></span>'+
-      '<span style="text-align:left">'+
-        '<span style="display:block;font-size:14px;font-weight:700;color:#111;letter-spacing:-.2px">Registra tus cheats</span>'+
-        '<span style="display:block;font-size:11px;color:#bbb;font-weight:500;margin-top:1px">'+(nCheats?nCheats+' registrado'+(nCheats!==1?'s':''):'Sin dramas, solo control')+'</span>'+
-      '</span>'+
-    '</span>'+
-    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'+
-  '</button>';
+  // 0c) (El acceso a cheats se movió a la pantalla de Dieta)
 
   // 1) Tarjeta resumen
   const deltaArrowSvg = delta==null?'' : (delta<0
