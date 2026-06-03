@@ -1527,17 +1527,27 @@ const CLIENT_TOUR=[
 let _ctIdx=0;
 function _clientTourKey(){ try{ return 'mytracc_tour_seen_'+((clientData&&clientData.id)||'x'); }catch(e){ return 'mytracc_tour_seen_x'; } }
 function maybeStartClientTour(){
-  let seen=false; try{ seen=localStorage.getItem(_clientTourKey())==='1'; }catch(e){}
+  let seen=false; try{ seen=localStorage.getItem(_clientTourKey())==='1' || localStorage.getItem('mytracc_tour_seen_any')==='1'; }catch(e){}
   if(seen) return;
   startClientTour();
 }
-function startClientTour(){ _ctIdx=0; if(state.tab!=='home'){ switchTab('home'); } setTimeout(_ctShow,250); }
-function _markClientTourSeen(){ try{ localStorage.setItem(_clientTourKey(),'1'); }catch(e){} }
+function startClientTour(){ _ctIdx=0; _markClientTourSeen(); if(state.tab!=='home'){ switchTab('home'); } setTimeout(_ctShow,250); }
+function _markClientTourSeen(){ try{ localStorage.setItem(_clientTourKey(),'1'); localStorage.setItem('mytracc_tour_seen_any','1'); }catch(e){} }
 function _ctEnd(){ _markClientTourSeen(); const r=document.getElementById('ctour-root'); if(r) r.remove(); }
 function clientTourSkip(){ _ctEnd(); }
 function clientTourPrev(){ if(_ctIdx>0){ _ctIdx--; _ctShow(); } }
 function clientTourNext(){ if(_ctIdx>=CLIENT_TOUR.length-1){ _ctEnd(); return; } _ctIdx++; _ctShow(); }
 function _ctShow(){
+  const step=CLIENT_TOUR[_ctIdx];
+  // Pasos cuyo target vive en el header (solo visible en home): forzar home y esperar al render
+  if((step.sel==='#app-avatar' || step.sel==='#tour-anchor-agenda') && state.tab!=='home'){
+    switchTab('home');
+    setTimeout(_ctRender, 220);
+    return;
+  }
+  _ctRender();
+}
+function _ctRender(){
   const step=CLIENT_TOUR[_ctIdx];
   let root=document.getElementById('ctour-root');
   if(!root){ root=document.createElement('div'); root.id='ctour-root'; document.body.appendChild(root); }
@@ -1559,17 +1569,19 @@ function _ctShow(){
       (!esUlt?'<div style="text-align:center;margin-top:10px"><button onclick="clientTourSkip()" style="background:none;border:none;color:#bbb;font-size:12px;cursor:pointer;font-family:\'DM Sans\',sans-serif">Saltar guía</button></div>':'')+
     '</div>';
 
-  // Posición: si hay target, resaltarlo y poner la card cerca; si no, centrado
+  // Posición: si hay target visible, resaltarlo y poner la card cerca; si no, centrado
   let highlight='', cardPos='';
-  if(target){
-    const r=target.getBoundingClientRect();
+  const r = target ? target.getBoundingClientRect() : null;
+  const visible = r && r.width>0 && r.height>0 && r.bottom>0 && r.top<window.innerHeight;
+  if(target && visible){
     const pad=6;
-    highlight='<div style="position:fixed;left:'+(r.left-pad)+'px;top:'+(r.top-pad)+'px;width:'+(r.width+pad*2)+'px;height:'+(r.height+pad*2)+'px;border:2.5px solid #16a34a;border-radius:14px;box-shadow:0 0 0 9999px rgba(26,26,24,.6);z-index:9301;pointer-events:none;transition:background .2s,color .2s,border-color .2s,transform .2s"></div>';
+    highlight='<div style="position:fixed;left:'+(r.left-pad)+'px;top:'+(r.top-pad)+'px;width:'+(r.width+pad*2)+'px;height:'+(r.height+pad*2)+'px;border:2.5px solid #16a34a;border-radius:14px;box-shadow:0 0 0 9999px rgba(26,26,24,.6);z-index:9301;pointer-events:none;transition:left .2s ease,top .2s ease,width .2s ease,height .2s ease"></div>';
     // Si el target está en la mitad inferior (tab-bar), card arriba; si arriba (header), card debajo
     const abajo=r.top>window.innerHeight/2;
     if(abajo){ cardPos='position:fixed;left:50%;transform:translateX(-50%);bottom:'+(window.innerHeight-r.top+14)+'px;z-index:9302'; }
     else { cardPos='position:fixed;left:50%;transform:translateX(-50%);top:'+(r.bottom+14)+'px;z-index:9302'; }
   } else {
+    // sin target o no visible: overlay oscuro y card centrada
     highlight='<div style="position:fixed;inset:0;background:rgba(26,26,24,.6);z-index:9301"></div>';
     cardPos='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9302';
   }
