@@ -296,6 +296,11 @@ select.inp{cursor:pointer;-webkit-appearance:none;appearance:none;background-ima
 .timer-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .timer-num-time{font-family:'DM Serif Display',serif;font-size:72px;color:#111;line-height:1;letter-spacing:-3px}
 .timer-num-label{font-size:11px;color:#bbb;font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:0.8px}
+.timer-overlay.open .timer-box{animation:timerBoxUp .38s cubic-bezier(0.32,0.72,0,1)}
+@keyframes timerBoxUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.timer-svg-ring.urgent{animation:ringPulse 1s ease-in-out infinite}
+@keyframes ringPulse{0%,100%{opacity:1}50%{opacity:.55}}
+.timer-num-time.urgent{color:#ef4444;transition:color .3s ease}
 
 /* WEEK REORDER */
 .week-reorder{background:var(--amber-light);border:1px solid rgba(180,83,9,0.2);border-radius:10px;padding:12px 14px;margin-top:10px}
@@ -4733,6 +4738,7 @@ function updateTimerRing(){
   ring.style.strokeDasharray=circ;
   ring.style.strokeDashoffset=circ*(1-pct);
   ring.classList.toggle('urgent',pct<0.25);
+  const disp=document.getElementById('timer-display'); if(disp) disp.classList.toggle('urgent',pct<0.25);
 }
 function addTimerMinute(){
   timerEndTime+=60000;
