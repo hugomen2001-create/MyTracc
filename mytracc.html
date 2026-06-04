@@ -795,9 +795,11 @@ button, [onclick]:not(input):not(textarea):not(select){
 const SB_URL='https://zniepgmzwhbxpsztpvli.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuaWVwZ216d2hieHBzenRwdmxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzcxMzksImV4cCI6MjA5NTA1MzEzOX0.fYwxr4D6NYYxwSS-R37NoTEmCf_KkInWoOegSJP-rhk';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-// ¿Volvemos de un enlace de recuperación de contraseña? (se captura ANTES de que Supabase limpie la URL)
-const _urlHadRecovery = /type=recovery/.test(location.hash) || /[?&]type=recovery/.test(location.search);
-let _recoveryMode = _urlHadRecovery;
+// ¿Llegamos desde un enlace del correo (recuperación)? Se captura ANTES de que Supabase limpie la URL.
+// Cubre los dos formatos posibles: token en el hash (#access_token...type=recovery) y PKCE (?code=).
+const _cameFromAuthLink = /access_token=|[?&]code=|type=recovery/.test((location.hash||'')+(location.search||''));
+let _recoveryMode = _cameFromAuthLink;
+let _recoveryShown = false;
 
 // ── CONSTANTES ──
 const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
@@ -6921,7 +6923,7 @@ async function doForgotPassword(){
 
 // Pantalla para fijar una contraseña nueva tras pulsar el enlace del email de recuperación
 function showResetScreen(){
-  _recoveryMode=true;
+  _recoveryMode=true; _recoveryShown=true;
   try{ showScreen('reset'); }catch(e){ console.warn('reset screen:',e); }
   // Limpia el token de la URL para que la pantalla no reaparezca al recargar
   try{ if(location.hash){ history.replaceState(null,'',location.pathname+location.search); } }catch(e){}
@@ -7004,6 +7006,9 @@ async function doLogout(){
 // Auth state change
 sb.auth.onAuthStateChange((event,session)=>{
   if(event==='PASSWORD_RECOVERY'){ showResetScreen(); return; }
+  // PKCE: tras intercambiar el code de recuperación, Supabase emite SIGNED_IN.
+  // Si venimos de un enlace del correo, lo tratamos como recuperación y mostramos la pantalla.
+  if(event==='SIGNED_IN' && _cameFromAuthLink && !_recoveryShown){ showResetScreen(); return; }
   if(event==='SIGNED_OUT'){doLogout();}
 });
 
