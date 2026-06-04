@@ -6940,7 +6940,7 @@ async function doResetPassword(){
   const btn=document.getElementById('btn-reset');
   if(btn){ btn.textContent='Guardando…'; btn.disabled=true; }
   try{
-    const {error}=await sb.auth.updateUser({password:p1});
+    const {data,error}=await sb.auth.updateUser({password:p1});
     if(error){
       if(btn){ btn.textContent='Guardar contraseña'; btn.disabled=false; }
       if(/session|missing|Auth|expired|invalid/i.test(error.message||'')){
@@ -6950,9 +6950,13 @@ async function doResetPassword(){
     }
     const ok=document.getElementById('reset-ok'); if(ok)ok.style.display='flex';
     const form=document.getElementById('reset-form'); if(form)form.style.display='none';
-    // La sesión ya es válida con la nueva contraseña: recarga limpia y entra directo
-    _recoveryMode=false;
-    setTimeout(function(){ location.replace(location.origin+location.pathname); },1200);
+    _recoveryMode=false; _recoveryShown=false;
+    // Limpia el token de la URL y entra directo a la app: la sesión ya es válida con la nueva contraseña
+    try{ history.replaceState(null,'',location.pathname); }catch(e){}
+    let u = data&&data.user;
+    if(!u){ try{ u=(await sb.auth.getUser()).data.user; }catch(e){} }
+    if(u){ await initApp(u); }
+    else { showScreen('auth'); try{ showAuthMode('signin'); }catch(e){} }
   }catch(e){
     if(btn){ btn.textContent='Guardar contraseña'; btn.disabled=false; }
     show('No se pudo cambiar la contraseña. Inténtalo de nuevo.');
