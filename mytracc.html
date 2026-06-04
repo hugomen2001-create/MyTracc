@@ -514,6 +514,35 @@ button, [onclick]:not(input):not(textarea):not(select){
   </div>
 </div>
 
+<!-- RESET PASSWORD SCREEN -->
+<div id="screen-reset" style="display:none;position:fixed;inset:0;background:#f5f5f3;z-index:9000;flex-direction:column;max-width:430px;margin:0 auto;overflow-y:auto">
+  <div style="padding:68px 28px 0;flex-shrink:0">
+    <div style="font-family:'DM Serif Display',serif;font-size:36px;line-height:1.05;color:#111;letter-spacing:-.5px;margin-bottom:8px">Nueva<br>contraseña.</div>
+    <div style="font-size:14px;color:#999;line-height:1.5;margin-bottom:28px">Elige una contraseña nueva para tu cuenta de MyTracc.</div>
+  </div>
+  <div style="padding:0 28px 40px;flex:1;display:flex;flex-direction:column">
+    <div id="reset-err" style="display:none;background:#fff1f0;border:1px solid #fca5a5;border-radius:12px;padding:12px 16px;align-items:flex-start;gap:10px;margin-bottom:16px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+      <div id="reset-err-text" style="font-size:13px;color:#b91c1c;line-height:1.4"></div>
+    </div>
+    <div id="reset-ok" style="display:none;background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:12px 16px;align-items:flex-start;gap:10px;margin-bottom:16px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M20 6 9 17l-5-5"/></svg>
+      <div style="font-size:13px;color:#15803d;line-height:1.4">Contraseña actualizada. Entrando…</div>
+    </div>
+    <div id="reset-form">
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:7px;display:block">Nueva contraseña</label>
+        <input type="password" id="reset-pwd" placeholder="Mínimo 8 caracteres" autocomplete="new-password" style="width:100%;height:52px;border-radius:14px;background:#fff;border:1.5px solid #e8e8e4;padding:0 16px;font-size:15px;color:#111;font-family:var(--font);outline:none;transition:border-color .15s,box-shadow .15s" onfocus="this.style.borderColor='#16a34a';this.style.boxShadow='0 0 0 3px rgba(22,163,74,.1)'" onblur="this.style.borderColor='#e8e8e4';this.style.boxShadow='none'">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#aaa;margin-bottom:7px;display:block">Repite la contraseña</label>
+        <input type="password" id="reset-pwd2" placeholder="••••••••" autocomplete="new-password" style="width:100%;height:52px;border-radius:14px;background:#fff;border:1.5px solid #e8e8e4;padding:0 16px;font-size:15px;color:#111;font-family:var(--font);outline:none;transition:border-color .15s,box-shadow .15s" onfocus="this.style.borderColor='#16a34a';this.style.boxShadow='0 0 0 3px rgba(22,163,74,.1)'" onblur="this.style.borderColor='#e8e8e4';this.style.boxShadow='none'" onkeydown="if(event.key==='Enter')doResetPassword()">
+      </div>
+      <button onclick="doResetPassword()" id="btn-reset" style="width:100%;height:54px;border-radius:15px;background:#16a34a;color:#fff;font-size:16px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);box-shadow:0 4px 16px rgba(22,163,74,.25)">Guardar contraseña</button>
+    </div>
+  </div>
+</div>
+
 <!-- ONBOARDING SCREEN -->
 <div id="screen-onboarding" style="display:none;position:fixed;inset:0;background:#f5f5f3;z-index:9000;flex-direction:column;max-width:430px;margin:0 auto;overflow-y:auto">
   <div id="ob-content" style="min-height:100%"></div>
@@ -762,6 +791,9 @@ button, [onclick]:not(input):not(textarea):not(select){
 const SB_URL='https://zniepgmzwhbxpsztpvli.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuaWVwZ216d2hieHBzenRwdmxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzcxMzksImV4cCI6MjA5NTA1MzEzOX0.fYwxr4D6NYYxwSS-R37NoTEmCf_KkInWoOegSJP-rhk';
 const sb=supabase.createClient(SB_URL,SB_KEY);
+// ¿Volvemos de un enlace de recuperación de contraseña? (se captura ANTES de que Supabase limpie la URL)
+const _urlHadRecovery = /type=recovery/.test(location.hash) || /[?&]type=recovery/.test(location.search);
+let _recoveryMode = _urlHadRecovery;
 
 // ── CONSTANTES ──
 const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
@@ -6379,6 +6411,7 @@ async function submitOnboarding(){
 // ── BOOT SUPABASE ──
 let _bootTimer=null;
 async function boot(){
+  if(_recoveryMode){ showResetScreen(); return; }
   showScreen('loading');
   // Resetea a estado "cargando" (por si venimos de un reintento)
   const sp=document.getElementById('loading-spinner');
@@ -6429,7 +6462,7 @@ function showLoadError(offline){
 }
 
 function showScreen(name){
-  ['loading','auth','pending','welcome','onboarding'].forEach(s=>{
+  ['loading','auth','reset','pending','welcome','onboarding'].forEach(s=>{
     const el=document.getElementById('screen-'+s);
     if(el)el.style.display='none';
   });
@@ -6871,6 +6904,44 @@ async function doForgotPassword(){
     showToast('Email enviado ✓','green','Revisa tu correo para restablecer la contraseña');
   }catch(e){console.warn('forgot password:',e);showAuthErr('No se pudo enviar el email. Inténtalo de nuevo.');}
 }
+
+// Pantalla para fijar una contraseña nueva tras pulsar el enlace del email de recuperación
+function showResetScreen(){
+  _recoveryMode=true;
+  try{ showScreen('reset'); }catch(e){ console.warn('reset screen:',e); }
+  // Limpia el token de la URL para que la pantalla no reaparezca al recargar
+  try{ if(location.hash){ history.replaceState(null,'',location.pathname+location.search); } }catch(e){}
+  const i=document.getElementById('reset-pwd'); if(i){ try{ i.focus(); }catch(e){} }
+}
+async function doResetPassword(){
+  const p1=((document.getElementById('reset-pwd')||{}).value||'');
+  const p2=((document.getElementById('reset-pwd2')||{}).value||'');
+  const err=document.getElementById('reset-err'), errT=document.getElementById('reset-err-text');
+  function show(m){ if(errT)errT.textContent=m; if(err)err.style.cssText+='display:flex;align-items:flex-start;gap:10px'; }
+  if(err)err.style.display='none';
+  if(p1.length<8){ show('La contraseña debe tener al menos 8 caracteres'); return; }
+  if(p1!==p2){ show('Las contraseñas no coinciden'); return; }
+  const btn=document.getElementById('btn-reset');
+  if(btn){ btn.textContent='Guardando…'; btn.disabled=true; }
+  try{
+    const {error}=await sb.auth.updateUser({password:p1});
+    if(error){
+      if(btn){ btn.textContent='Guardar contraseña'; btn.disabled=false; }
+      if(/session|missing|Auth|expired|invalid/i.test(error.message||'')){
+        show('El enlace ha caducado o no es válido. Pide otro correo desde "¿Olvidaste?".');
+      } else { show(error.message||'No se pudo cambiar la contraseña.'); }
+      return;
+    }
+    const ok=document.getElementById('reset-ok'); if(ok)ok.style.display='flex';
+    const form=document.getElementById('reset-form'); if(form)form.style.display='none';
+    // La sesión ya es válida con la nueva contraseña: recarga limpia y entra directo
+    _recoveryMode=false;
+    setTimeout(function(){ location.replace(location.origin+location.pathname); },1200);
+  }catch(e){
+    if(btn){ btn.textContent='Guardar contraseña'; btn.disabled=false; }
+    show('No se pudo cambiar la contraseña. Inténtalo de nuevo.');
+  }
+}
 async function doSignUp(){
   const name=document.getElementById('signup-name').value.trim();
   const email=document.getElementById('signup-email').value.trim();
@@ -6909,6 +6980,7 @@ async function doLogout(){
 
 // Auth state change
 sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='PASSWORD_RECOVERY'){ showResetScreen(); return; }
   if(event==='SIGNED_OUT'){doLogout();}
 });
 
