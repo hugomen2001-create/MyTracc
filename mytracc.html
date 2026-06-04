@@ -467,6 +467,10 @@ button, [onclick]:not(input):not(textarea):not(select){
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
       <div id="auth-err-text" style="font-size:13px;color:#b91c1c;line-height:1.4"></div>
     </div>
+    <div id="auth-ok" style="display:none;background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:12px 16px;align-items:flex-start;gap:10px;margin-bottom:16px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
+      <div id="auth-ok-text" style="font-size:13px;color:#15803d;line-height:1.45"></div>
+    </div>
     <div id="auth-social">
       <button onclick="showEmailForm()" style="width:100%;height:54px;border-radius:15px;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:600;cursor:pointer;font-family:var(--font);border:none;box-shadow:0 4px 16px rgba(22,163,74,.25)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
@@ -488,7 +492,7 @@ button, [onclick]:not(input):not(textarea):not(select){
             <div id="remember-box" style="width:20px;height:20px;border-radius:6px;background:#e8e8e4;border:1.5px solid #e0e0dc;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s,border-color .15s,transform .15s"></div>
             <span style="font-size:13.5px;color:#555;font-weight:500">Recordar sesión</span>
           </div>
-          <span onclick="doForgotPassword()" style="font-size:13.5px;color:#16a34a;font-weight:600;cursor:pointer">¿Olvidaste?</span>
+          <span id="forgot-link" onclick="doForgotPassword()" style="font-size:13.5px;color:#16a34a;font-weight:600;cursor:pointer">¿Olvidaste?</span>
         </div>
         <button onclick="doSignIn()" id="btn-signin" style="width:100%;height:54px;border-radius:15px;background:#16a34a;color:#fff;font-size:16px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);box-shadow:0 4px 16px rgba(22,163,74,.25);margin-bottom:14px">Iniciar sesión</button>
         <div style="text-align:center;font-size:13.5px;color:#aaa">¿No tienes cuenta? <strong style="color:#111;font-weight:600;cursor:pointer" onclick="showSignup()">Crear cuenta</strong></div>
@@ -6896,13 +6900,23 @@ async function doSignIn(){
 async function doForgotPassword(){
   const email=(document.getElementById('signin-email')||{}).value;
   const mail=(email||'').trim();
+  const okBox=document.getElementById('auth-ok');
+  if(okBox)okBox.style.display='none';
   if(!mail){showAuthErr('Escribe tu email arriba y vuelve a pulsar "¿Olvidaste?"');return;}
   if(navigator.onLine===false){showAuthErr('Sin conexión. Inténtalo de nuevo cuando vuelvas a tener internet.');return;}
+  const link=document.getElementById('forgot-link');
+  const prev=link?link.textContent:'';
+  if(link){link.textContent='Enviando…';link.style.pointerEvents='none';link.style.opacity='.6';}
   try{
     const {error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:window.location.origin+window.location.pathname});
+    if(link){link.textContent=prev||'¿Olvidaste?';link.style.pointerEvents='';link.style.opacity='';}
     if(error){showAuthErr(error.message);return;}
-    showToast('Email enviado ✓','green','Revisa tu correo para restablecer la contraseña');
-  }catch(e){console.warn('forgot password:',e);showAuthErr('No se pudo enviar el email. Inténtalo de nuevo.');}
+    showAuthOk('Te hemos enviado un correo a '+mail+' para restablecer tu contraseña. Revisa tu bandeja de entrada (y la carpeta de spam).');
+    try{ showToast('Email enviado','green','Revisa tu correo para restablecer la contraseña'); }catch(e){}
+  }catch(e){
+    if(link){link.textContent=prev||'¿Olvidaste?';link.style.pointerEvents='';link.style.opacity='';}
+    console.warn('forgot password:',e);showAuthErr('No se pudo enviar el email. Inténtalo de nuevo.');
+  }
 }
 
 // Pantalla para fijar una contraseña nueva tras pulsar el enlace del email de recuperación
@@ -6963,11 +6977,20 @@ async function doSignUp(){
   }
 }
 function showAuthErr(msg){
+  const ok=document.getElementById('auth-ok'); if(ok)ok.style.display='none';
   const el=document.getElementById('auth-err');
   const txt=document.getElementById('auth-err-text');
   if(!el||!txt)return;
   txt.textContent=msg;el.style.cssText+='display:flex;align-items:flex-start;gap:10px';
   setTimeout(()=>{el.style.display='none';el.style.alignItems='';el.style.gap='';},5000);
+}
+function showAuthOk(msg){
+  const er=document.getElementById('auth-err'); if(er)er.style.display='none';
+  const el=document.getElementById('auth-ok');
+  const txt=document.getElementById('auth-ok-text');
+  if(!el||!txt)return;
+  txt.textContent=msg;el.style.cssText+='display:flex;align-items:flex-start;gap:10px';
+  setTimeout(()=>{el.style.display='none';el.style.alignItems='';el.style.gap='';},9000);
 }
 let _loggingOut=false;
 async function doLogout(){
