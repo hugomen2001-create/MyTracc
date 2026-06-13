@@ -1,0 +1,10 @@
+{
+  "name": "MyTracc",
+  "short_name": "MyTracc",
+  "start_url": "/plan-hugo/index.html",
+  "scope": "/plan-hugo/",
+  "display": "standalone",
+  "background_color": "#f5f5f3",
+  "theme_color": "#f5f5f3",
+  "orientation": "portrait"
+}
