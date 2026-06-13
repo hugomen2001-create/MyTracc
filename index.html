@@ -4350,7 +4350,9 @@ function renderProgreso(){
     '<div style="font-family:\'DM Serif Display\',serif;font-size:30px;color:#16a34a;letter-spacing:-.5px;line-height:1;">Progreso</div>'+
     '<div style="display:flex;align-items:center;gap:14px;color:#1a1a18;">'+
       '<div onclick="openPerfilPanel()" style="cursor:pointer;display:flex;" title="Mi perfil"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6"/></svg></div>'+
-      '<div onclick="openHistorial()" style="cursor:pointer;display:flex;">'+cal+'</div>'+
+      '<div onclick="openAgendaPanel()" style="position:relative;cursor:pointer;display:flex;">'+cal+
+        '<div style="'+(agendaBadgeCount()>0?'display:flex':'display:none')+';position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#d97706;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box">'+(agendaBadgeCount()>9?'9+':agendaBadgeCount()||0)+'</div>'+
+      '</div>'+
       '<div onclick="toggleNotifPanel()" style="position:relative;cursor:pointer;display:flex;">'+bell+
         '<div id="notif-badge" style="'+(notifBadge>0?'display:block':'display:none')+';position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:#ef4444;border:1.5px solid #fbfaf9;"></div>'+
       '</div>'+
