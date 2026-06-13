@@ -1,8 +1,8 @@
-// MyTracc Service Worker v2
-const CACHE_NAME = 'mytracc-v2';
+// MyTracc Service Worker v3
+const CACHE_NAME = 'mytracc-v3';
 const ASSETS = [
-  '/plan-hugo/index.html',
-  '/plan-hugo/manifest.json'
+  './index.html',
+  './manifest.json'
 ];
 
 // ── INSTALL: cachear assets ──
@@ -62,7 +62,7 @@ self.addEventListener('notificationclick', e => {
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('/plan-hugo/index.html');
+        return clients.openWindow('./index.html');
       }
     })
   );
