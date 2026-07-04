@@ -30,3 +30,4 @@ jobs:
           SPREADSHEET_ID_WEEKLY: ${{ vars.SPREADSHEET_ID_WEEKLY }}
           SPREADSHEET_ID_PLAN: ${{ vars.SPREADSHEET_ID_PLAN }}
           ACTIVE_MESOCICLO_TAB: ${{ vars.ACTIVE_MESOCICLO_TAB }}
+          DEBUG_SYNC: 'true'
