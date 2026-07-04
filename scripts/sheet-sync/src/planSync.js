@@ -5,6 +5,13 @@ const { findBlocks } = require('./planBlocks');
 const { colIndexToLetter } = require('./columns');
 const { formatSessionExercise } = require('./formatSets');
 
+// Compara nombres de ejercicio ignorando mayusculas/minusculas y espacios
+// repetidos, para que una coma o doble espacio en la hoja no bloquee la
+// sincronizacion de ese ejercicio.
+function normalizeExerciseName(name) {
+  return (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 async function fetchSessionsByType(sessionType) {
   const { data, error } = await supabase
     .from('workout_sessions')
@@ -32,7 +39,8 @@ async function syncPlanSheet() {
     const sessions = await fetchSessionsByType(block.sessionType);
 
     for (const ex of block.exerciseRows) {
-      const relevant = sessions.filter((s) => s.workout_sets.some((ws) => ws.exercise_name === ex.exerciseName));
+      const targetName = normalizeExerciseName(ex.exerciseName);
+      const relevant = sessions.filter((s) => s.workout_sets.some((ws) => normalizeExerciseName(ws.exercise_name) === targetName));
 
       let lastFilledIdx = 0;
       for (let n = block.sessionCols.length; n >= 1; n--) {
@@ -42,12 +50,6 @@ async function syncPlanSheet() {
           lastFilledIdx = n;
           break;
         }
-      }
-
-      if (process.env.DEBUG_SYNC) {
-        console.log(
-          `[debug] block=${block.sessionType} ex="${ex.exerciseName}" row=${ex.sheetRow} sessionCols=${block.sessionCols.length} lastFilledIdx=${lastFilledIdx} relevant=${relevant.length} relevantDates=${relevant.map((s) => s.session_date).join(',')}`
-        );
       }
 
       const newOnes = relevant.slice(lastFilledIdx);
@@ -62,11 +64,11 @@ async function syncPlanSheet() {
           return;
         }
         const colLetter = colIndexToLetter(block.sessionCols[targetIdx].colIndex);
-        const sets = session.workout_sets.filter((ws) => ws.exercise_name === ex.exerciseName);
+        const sets = session.workout_sets.filter((ws) => normalizeExerciseName(ws.exercise_name) === targetName);
         const value = formatSessionExercise(sets);
         writes.push({ range: `'${tab}'!${colLetter}${ex.sheetRow}`, values: [[value]] });
 
-        const note = session.exercise_notes.find((n) => n.exercise_name === ex.exerciseName);
+        const note = session.exercise_notes.find((n) => normalizeExerciseName(n.exercise_name) === targetName);
         if (note) lastNote = note.note;
       });
 
