@@ -44,6 +44,12 @@ async function syncPlanSheet() {
         }
       }
 
+      if (process.env.DEBUG_SYNC) {
+        console.log(
+          `[debug] block=${block.sessionType} ex="${ex.exerciseName}" row=${ex.sheetRow} sessionCols=${block.sessionCols.length} lastFilledIdx=${lastFilledIdx} relevant=${relevant.length} relevantDates=${relevant.map((s) => s.session_date).join(',')}`
+        );
+      }
+
       const newOnes = relevant.slice(lastFilledIdx);
       let lastNote = null;
 
