@@ -52,6 +52,13 @@ async function syncPlanSheet() {
         }
       }
 
+      if (process.env.DEBUG_SYNC) {
+        const rowVals = block.sessionCols.map((c) => (values[ex.sheetRow - 1] || [])[c.colIndex] || '');
+        console.log(
+          `[debug] block=${block.sessionType} ex="${ex.exerciseName}" row=${ex.sheetRow} lastFilledIdx=${lastFilledIdx} relevant=${relevant.length} relevantDates=${relevant.map((s) => s.session_date).join(',')} rowVals=${JSON.stringify(rowVals)}`
+        );
+      }
+
       const newOnes = relevant.slice(lastFilledIdx);
       let lastNote = null;
 
