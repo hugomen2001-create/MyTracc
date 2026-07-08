@@ -52,13 +52,6 @@ async function syncPlanSheet() {
         }
       }
 
-      if (process.env.DEBUG_SYNC) {
-        const rowVals = block.sessionCols.map((c) => (values[ex.sheetRow - 1] || [])[c.colIndex] || '');
-        console.log(
-          `[debug] block=${block.sessionType} ex="${ex.exerciseName}" row=${ex.sheetRow} lastFilledIdx=${lastFilledIdx} relevant=${relevant.length} relevantDates=${relevant.map((s) => s.session_date).join(',')} rowVals=${JSON.stringify(rowVals)}`
-        );
-      }
-
       const newOnes = relevant.slice(lastFilledIdx);
       let lastNote = null;
 
@@ -80,8 +73,13 @@ async function syncPlanSheet() {
       });
 
       if (lastNote != null) {
-        const commentColLetter = colIndexToLetter(block.commentCol);
-        writes.push({ range: `'${tab}'!${commentColLetter}${ex.sheetRow}`, values: [[lastNote]] });
+        const currentComment = (values[ex.sheetRow - 1] || [])[block.commentCol];
+        if (!currentComment) {
+          const commentColLetter = colIndexToLetter(block.commentCol);
+          writes.push({ range: `'${tab}'!${commentColLetter}${ex.sheetRow}`, values: [[lastNote]] });
+        } else {
+          console.warn(`[plan] Comentario de "${ex.exerciseName}" (${block.sessionType}) ya tiene texto, no se sobrescribe.`);
+        }
       }
     }
   }
