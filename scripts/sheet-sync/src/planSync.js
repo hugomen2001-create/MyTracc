@@ -12,12 +12,24 @@ function normalizeExerciseName(name) {
   return (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-async function fetchSessionsByType(sessionType) {
+async function fetchActiveMesocicloStartDate() {
+  const { data, error } = await supabase
+    .from('mesocycles')
+    .select('start_date')
+    .eq('client_id', config.clientId)
+    .eq('is_active', true)
+    .single();
+  if (error) throw error;
+  return data.start_date;
+}
+
+async function fetchSessionsByType(sessionType, sinceDate) {
   const { data, error } = await supabase
     .from('workout_sessions')
     .select('id, session_date, workout_sets(exercise_name, set_number, reps_done, weight_kg), exercise_notes(exercise_name, note)')
     .eq('client_id', config.clientId)
     .eq('session_type', sessionType)
+    .gte('session_date', sinceDate)
     .order('session_date', { ascending: true });
   if (error) throw error;
   return data;
@@ -33,10 +45,14 @@ async function syncPlanSheet() {
     return;
   }
 
+  // Solo sesiones del mesociclo activo: evita arrastrar el historial de
+  // mesociclos anteriores cuando un ejercicio se repite de un mesociclo a otro.
+  const mesoStartDate = await fetchActiveMesocicloStartDate();
+
   const writes = [];
 
   for (const block of blocks) {
-    const sessions = await fetchSessionsByType(block.sessionType);
+    const sessions = await fetchSessionsByType(block.sessionType, mesoStartDate);
 
     for (const ex of block.exerciseRows) {
       const targetName = normalizeExerciseName(ex.exerciseName);
