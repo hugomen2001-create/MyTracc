@@ -6,6 +6,10 @@ on:
     - cron: '30 23 * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -31,3 +35,15 @@ jobs:
           SPREADSHEET_ID_PLAN: ${{ vars.SPREADSHEET_ID_PLAN }}
           ACTIVE_MESOCICLO_TAB: ${{ vars.ACTIVE_MESOCICLO_TAB }}
           DEBUG_SYNC: 'true'
+
+      # GitHub desactiva los workflows programados tras 60 dias sin actividad en
+      # el repo (paso el 15-sep-2026 y el sync estuvo parado 20 dias). Volver a
+      # habilitarlo por API en cada ejecucion reinicia ese contador.
+      - name: Evitar desactivacion por inactividad
+        if: always()
+        working-directory: .
+        run: |
+          curl -sS -o /dev/null -w "keepalive: %{http_code}\n" -X PUT \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/sheet-sync.yml/enable"
