@@ -5,11 +5,17 @@ const { findBlocks } = require('./planBlocks');
 const { colIndexToLetter } = require('./columns');
 const { formatSessionExercise } = require('./formatSets');
 
-// Compara nombres de ejercicio ignorando mayusculas/minusculas y espacios
-// repetidos, para que una coma o doble espacio en la hoja no bloquee la
-// sincronizacion de ese ejercicio.
+// Compara nombres de ejercicio ignorando mayusculas/minusculas, espacios
+// repetidos y espacios pegados a un parentesis, para que una coma, un doble
+// espacio o un "( con peso)" en la hoja no bloquee la sincronizacion de ese
+// ejercicio.
 function normalizeExerciseName(name) {
-  return (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return (name || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\(\s+/g, '(')
+    .replace(/\s+\)/g, ')')
+    .toLowerCase();
 }
 
 async function fetchActiveMesocicloStartDate() {
