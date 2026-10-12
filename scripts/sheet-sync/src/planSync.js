@@ -18,6 +18,21 @@ function normalizeExerciseName(name) {
     .toLowerCase();
 }
 
+// Filas de la hoja donde el coach ha cambiado el ejercicio a mitad de
+// mesociclo. Las sesiones del ejercicio anterior ya ocupan columnas de esa
+// fila, asi que cuentan para saber cual es la siguiente columna libre.
+const PREVIOUS_ROW_EXERCISES = {
+  PULL: {
+    'remo en máquina énfasis espalda alta': ['remo gironda agarre prono'],
+  },
+};
+
+function rowExerciseNames(sessionType, exerciseName) {
+  const targetName = normalizeExerciseName(exerciseName);
+  const previous = (PREVIOUS_ROW_EXERCISES[sessionType] || {})[targetName] || [];
+  return new Set([targetName, ...previous.map(normalizeExerciseName)]);
+}
+
 async function fetchActiveMesocicloStartDate() {
   const { data, error } = await supabase
     .from('mesocycles')
@@ -61,8 +76,8 @@ async function syncPlanSheet() {
     const sessions = await fetchSessionsByType(block.sessionType, mesoStartDate);
 
     for (const ex of block.exerciseRows) {
-      const targetName = normalizeExerciseName(ex.exerciseName);
-      const relevant = sessions.filter((s) => s.workout_sets.some((ws) => normalizeExerciseName(ws.exercise_name) === targetName));
+      const rowNames = rowExerciseNames(block.sessionType, ex.exerciseName);
+      const relevant = sessions.filter((s) => s.workout_sets.some((ws) => rowNames.has(normalizeExerciseName(ws.exercise_name))));
 
       let lastFilledIdx = 0;
       for (let n = block.sessionCols.length; n >= 1; n--) {
@@ -86,11 +101,11 @@ async function syncPlanSheet() {
           return;
         }
         const colLetter = colIndexToLetter(block.sessionCols[targetIdx].colIndex);
-        const sets = session.workout_sets.filter((ws) => normalizeExerciseName(ws.exercise_name) === targetName);
+        const sets = session.workout_sets.filter((ws) => rowNames.has(normalizeExerciseName(ws.exercise_name)));
         const value = formatSessionExercise(sets);
         writes.push({ range: `'${tab}'!${colLetter}${ex.sheetRow}`, values: [[value]] });
 
-        const note = session.exercise_notes.find((n) => normalizeExerciseName(n.exercise_name) === targetName);
+        const note = session.exercise_notes.find((n) => rowNames.has(normalizeExerciseName(n.exercise_name)));
         if (note) lastNote = note.note;
       });
 
