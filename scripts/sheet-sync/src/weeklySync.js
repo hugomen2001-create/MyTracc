@@ -31,11 +31,20 @@ async function syncWeeklySheet() {
     .order('date', { ascending: true });
   if (error) throw error;
 
-  const tabCache = {}; // tab -> { values, blockRows }
+  const tabCache = {}; // tab -> { values, blockRows } | null si la pestaña no existe
+  const missingTabs = new Set();
   async function getTabInfo(tab) {
-    if (!tabCache[tab]) {
-      const values = await getValues(config.spreadsheetIdWeekly, `'${tab}'!A1:L400`);
-      tabCache[tab] = { values, blockRows: findWeekBlockRows(values) };
+    if (!(tab in tabCache)) {
+      try {
+        const values = await getValues(config.spreadsheetIdWeekly, `'${tab}'!A1:L400`);
+        tabCache[tab] = { values, blockRows: findWeekBlockRows(values) };
+      } catch (err) {
+        // Pestaña MES aun no creada en la hoja: se salta (sin inventar nada) y
+        // se avisa al final, sin bloquear el resto de la sincronizacion.
+        if (!/Unable to parse range/i.test(String(err && err.message))) throw err;
+        tabCache[tab] = null;
+        missingTabs.add(tab);
+      }
     }
     return tabCache[tab];
   }
@@ -47,7 +56,9 @@ async function syncWeeklySheet() {
     const loc = locateDate(row.date, config.anchorMonday);
     if (!loc) continue;
 
-    const { blockRows } = await getTabInfo(loc.tab);
+    const tabInfo = await getTabInfo(loc.tab);
+    if (!tabInfo) continue;
+    const { blockRows } = tabInfo;
     const anchorRow = blockRows[loc.semanaIndex];
     if (!anchorRow) {
       console.warn(`[weekly] No se encontro el bloque de semana ${loc.semanaIndex + 1} en la pestaña "${loc.tab}" (fecha ${row.date}). Revisa la estructura de la hoja.`);
@@ -107,6 +118,10 @@ async function syncWeeklySheet() {
 
   await batchUpdateValues(config.spreadsheetIdWeekly, writes);
   console.log(`[weekly] ${writes.length} celdas actualizadas.`);
+  if (missingTabs.size) {
+    console.error(`[weekly] SIN SINCRONIZAR: falta la pestaña ${[...missingTabs].join(', ')} en el registro semanal. Hay que crearla con el mismo formato que las demas.`);
+  }
+  return { missingTabs: [...missingTabs] };
 }
 
 module.exports = { syncWeeklySheet };
