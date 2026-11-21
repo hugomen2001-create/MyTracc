@@ -17,7 +17,7 @@ module.exports = {
   anchorMonday: process.env.ANCHOR_MONDAY || '2026-01-05',
   // Pestaña activa del plan de entrenamiento. Actualizar cuando el coach cambie
   // de mesociclo (ver README de este directorio).
-  activeMesocicloTab: process.env.ACTIVE_MESOCICLO_TAB || 'MESOCICLO 2',
+  activeMesocicloTab: process.env.ACTIVE_MESOCICLO_TAB || 'MESOCICLO 4',
   // Cuantos dias hacia atras revisar en cada ejecucion (cubre el caso de que
   // el script no se ejecute una noche, o de subida tardia de datos).
   lookbackDays: parseInt(process.env.LOOKBACK_DAYS || '40', 10),
