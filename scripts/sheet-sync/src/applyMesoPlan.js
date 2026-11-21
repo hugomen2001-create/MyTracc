@@ -30,6 +30,7 @@ function parseSheet(values) {
     const cReps = col(['Repeticiones']);
     const cRest = col(['Descanso recomendado']);
     const cLink = col(['Enlace', 'Enlaces']);
+    const cApprox = col(['Aproximaciones']);
     const exercises = b.exerciseRows.map((ex, i) => {
       const row = values[ex.sheetRow - 1] || [];
       return {
@@ -38,6 +39,7 @@ function parseSheet(values) {
         sets: parseInt(row[cSeries], 10) || null,
         reps: clean(row[cReps]) || null,
         rest_sec: restSec(row[cRest]),
+        approx: cApprox >= 0 && clean(row[cApprox]) !== '' ? clean(row[cApprox]) : null,
         video_url: /^https?:\/\//.test(clean(row[cLink])) ? clean(row[cLink]) : null,
       };
     });
@@ -104,7 +106,7 @@ async function applyMesoPlan({ tab: TAB, apply: APPLY }) {
     for (const e of block.exercises) {
       let ex = exByName.get(norm(e.name));
       if (!ex) {
-        const row = { name: e.name, video_url: e.video_url, default_rest_sec: e.rest_sec || 120 };
+        const row = { coach_id: current[0].coach_id, name: e.name, video_url: e.video_url, default_sets: e.sets || 3, default_reps: e.reps, default_rest_sec: e.rest_sec || 120 };
         console.log(`  ejercicio nuevo: ${e.name}`);
         if (APPLY) {
           const { data: ins, error: ie } = await supabase.from('exercises').insert(row).select().single();
@@ -130,6 +132,7 @@ async function applyMesoPlan({ tab: TAB, apply: APPLY }) {
       sets: e.sets || 3,
       reps: e.reps,
       rest_sec: e.rest_sec || 120,
+      approx: e.approx == null ? template.approx : (typeof template.approx === 'number' ? Number(e.approx) : e.approx),
       is_active: true,
     }));
 
